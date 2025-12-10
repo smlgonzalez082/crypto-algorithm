@@ -3,193 +3,265 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Crypto Grid Trading Bot</title>
+    <title>Grid Trading Bot Dashboard</title>
     <link rel="stylesheet" href="/static/css/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
 </head>
 <body>
     <div class="container">
         <header>
-            <h1>Grid Trading Bot</h1>
-            <div class="status-badge" id="connection-status">Disconnected</div>
+            <div class="header-left">
+                <h1>Grid Trading Bot</h1>
+                <span class="version">v0.1.0</span>
+            </div>
+            <div class="header-right">
+                <div class="status-badge" id="connection-status">Disconnected</div>
+            </div>
         </header>
 
         <main>
-            <!-- Bot Status Panel -->
-            <section class="panel status-panel">
-                <h2>Bot Status</h2>
-                <div class="status-grid">
-                    <div class="status-item">
-                        <span class="label">Status</span>
-                        <span class="value" id="bot-status">Stopped</span>
-                    </div>
-                    <div class="status-item">
-                        <span class="label">Mode</span>
-                        <span class="value" id="bot-mode">Simulation</span>
-                    </div>
-                    <div class="status-item">
-                        <span class="label">Trading Pair</span>
-                        <span class="value" id="trading-pair">-</span>
-                    </div>
-                    <div class="status-item">
-                        <span class="label">Current Price</span>
-                        <span class="value" id="current-price">-</span>
-                    </div>
-                    <div class="status-item">
-                        <span class="label">Open Orders</span>
-                        <span class="value" id="open-orders">0</span>
-                    </div>
-                    <div class="status-item">
-                        <span class="label">Total Trades</span>
-                        <span class="value" id="total-trades">0</span>
-                    </div>
-                    <div class="status-item">
-                        <span class="label">Total Profit</span>
-                        <span class="value profit" id="total-profit">$0.00</span>
-                    </div>
-                    <div class="status-item">
-                        <span class="label">Uptime</span>
-                        <span class="value" id="uptime">0s</span>
+            <!-- Top Stats Row -->
+            <section class="stats-row">
+                <div class="stat-card">
+                    <div class="stat-icon running-icon" id="status-icon">⏹</div>
+                    <div class="stat-content">
+                        <span class="stat-label">Status</span>
+                        <span class="stat-value" id="bot-status">Stopped</span>
                     </div>
                 </div>
-                <div class="button-group">
-                    <button id="start-btn" class="btn btn-success">Start Bot</button>
-                    <button id="stop-btn" class="btn btn-danger" disabled>Stop Bot</button>
+                <div class="stat-card">
+                    <div class="stat-icon">💹</div>
+                    <div class="stat-content">
+                        <span class="stat-label">Current Price</span>
+                        <span class="stat-value" id="current-price">$0.00</span>
+                    </div>
+                </div>
+                <div class="stat-card highlight">
+                    <div class="stat-icon">💰</div>
+                    <div class="stat-content">
+                        <span class="stat-label">Total Profit</span>
+                        <span class="stat-value profit" id="total-profit">$0.00</span>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">📈</div>
+                    <div class="stat-content">
+                        <span class="stat-label">Total Trades</span>
+                        <span class="stat-value" id="total-trades">0</span>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">📋</div>
+                    <div class="stat-content">
+                        <span class="stat-label">Open Orders</span>
+                        <span class="stat-value" id="open-orders">0</span>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">⏱</div>
+                    <div class="stat-content">
+                        <span class="stat-label">Uptime</span>
+                        <span class="stat-value" id="uptime">0s</span>
+                    </div>
                 </div>
             </section>
 
-            <!-- Grid Configuration Panel -->
-            <section class="panel config-panel">
-                <h2>Grid Configuration</h2>
-                <form id="config-form">
-                    <div class="form-row">
+            <!-- Charts Row -->
+            <section class="charts-row">
+                <div class="panel chart-panel">
+                    <div class="panel-header">
+                        <h2>Price Chart</h2>
+                        <div class="panel-info">
+                            <span id="trading-pair">BTCUSDT</span>
+                            <span class="mode-badge" id="mode-badge">Simulation</span>
+                        </div>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="priceChart"></canvas>
+                    </div>
+                </div>
+                <div class="panel chart-panel-small">
+                    <div class="panel-header">
+                        <h2>Profit Over Time</h2>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="profitChart"></canvas>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Main Content Row -->
+            <section class="content-row">
+                <!-- Grid Configuration Panel -->
+                <div class="panel config-panel">
+                    <div class="panel-header">
+                        <h2>Configuration</h2>
+                    </div>
+                    <form id="config-form">
                         <div class="form-group">
                             <label for="trading-pair-input">Trading Pair</label>
                             <input type="text" id="trading-pair-input" value="BTCUSDT">
                         </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="upper-price">Upper Price</label>
+                                <input type="number" id="upper-price" step="0.01" value="45000">
+                            </div>
+                            <div class="form-group">
+                                <label for="lower-price">Lower Price</label>
+                                <input type="number" id="lower-price" step="0.01" value="40000">
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="grid-count">Grid Levels</label>
+                                <input type="number" id="grid-count" min="2" max="100" value="10">
+                            </div>
+                            <div class="form-group">
+                                <label for="amount-per-grid">Amount/Grid</label>
+                                <input type="number" id="amount-per-grid" step="0.0001" value="0.001">
+                            </div>
+                        </div>
                         <div class="form-group">
                             <label for="grid-type">Grid Type</label>
                             <select id="grid-type">
-                                <option value="arithmetic">Arithmetic</option>
-                                <option value="geometric">Geometric</option>
+                                <option value="arithmetic">Arithmetic (Equal $)</option>
+                                <option value="geometric">Geometric (Equal %)</option>
                             </select>
                         </div>
-                    </div>
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label for="upper-price">Upper Price</label>
-                            <input type="number" id="upper-price" step="0.01" value="45000">
+                        <div class="form-group checkbox-group">
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="simulation-mode" checked>
+                                <span class="checkbox-custom"></span>
+                                Simulation Mode
+                            </label>
                         </div>
-                        <div class="form-group">
-                            <label for="lower-price">Lower Price</label>
-                            <input type="number" id="lower-price" step="0.01" value="40000">
+                        <button type="submit" class="btn btn-primary btn-block">Update Config</button>
+                    </form>
+                    <div class="button-group">
+                        <button id="start-btn" class="btn btn-success">Start Bot</button>
+                        <button id="stop-btn" class="btn btn-danger" disabled>Stop Bot</button>
+                    </div>
+                </div>
+
+                <!-- Grid Levels Visualization -->
+                <div class="panel grid-panel">
+                    <div class="panel-header">
+                        <h2>Grid Levels</h2>
+                        <span class="panel-badge" id="grid-info">0 levels</span>
+                    </div>
+                    <div class="grid-visualization" id="grid-visualization">
+                        <div class="grid-empty">Start the bot to see grid levels</div>
+                    </div>
+                </div>
+
+                <!-- Balances Panel -->
+                <div class="panel balances-panel">
+                    <div class="panel-header">
+                        <h2>Balances</h2>
+                    </div>
+                    <div id="balances-container">
+                        <div class="balance-item">
+                            <div class="balance-info">
+                                <span class="asset-icon">💵</span>
+                                <span class="asset">USDT</span>
+                            </div>
+                            <div class="balance-amounts">
+                                <span class="amount" id="balance-usdt">10,000.00</span>
+                            </div>
+                        </div>
+                        <div class="balance-item">
+                            <div class="balance-info">
+                                <span class="asset-icon">₿</span>
+                                <span class="asset">BTC</span>
+                            </div>
+                            <div class="balance-amounts">
+                                <span class="amount" id="balance-btc">0.00000000</span>
+                            </div>
                         </div>
                     </div>
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label for="grid-count">Grid Count</label>
-                            <input type="number" id="grid-count" min="2" max="100" value="10">
+
+                    <!-- Simulation Controls -->
+                    <div class="simulation-controls" id="simulation-controls">
+                        <h3>Price Simulation</h3>
+                        <div class="price-input-group">
+                            <input type="number" id="simulate-price" step="0.01" value="42500">
+                            <button id="simulate-btn" class="btn btn-secondary">Set</button>
                         </div>
-                        <div class="form-group">
-                            <label for="amount-per-grid">Amount per Grid</label>
-                            <input type="number" id="amount-per-grid" step="0.0001" value="0.001">
+                        <div class="quick-actions">
+                            <button class="btn btn-xs" onclick="adjustPrice(-500)">-$500</button>
+                            <button class="btn btn-xs" onclick="adjustPrice(-100)">-$100</button>
+                            <button class="btn btn-xs" onclick="adjustPrice(100)">+$100</button>
+                            <button class="btn btn-xs" onclick="adjustPrice(500)">+$500</button>
                         </div>
                     </div>
-                    <div class="form-group">
-                        <label>
-                            <input type="checkbox" id="simulation-mode" checked>
-                            Simulation Mode
-                        </label>
-                    </div>
-                    <button type="submit" class="btn btn-primary">Update Config</button>
-                </form>
-            </section>
-
-            <!-- Simulation Controls (only visible in simulation mode) -->
-            <section class="panel simulation-panel" id="simulation-controls">
-                <h2>Price Simulation</h2>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="simulate-price">Set Price</label>
-                        <input type="number" id="simulate-price" step="0.01" value="42500">
-                    </div>
-                    <button id="simulate-btn" class="btn btn-secondary">Apply Price</button>
-                </div>
-                <div class="quick-actions">
-                    <button class="btn btn-sm" onclick="adjustPrice(-100)">-$100</button>
-                    <button class="btn btn-sm" onclick="adjustPrice(-50)">-$50</button>
-                    <button class="btn btn-sm" onclick="adjustPrice(50)">+$50</button>
-                    <button class="btn btn-sm" onclick="adjustPrice(100)">+$100</button>
                 </div>
             </section>
 
-            <!-- Balances Panel -->
-            <section class="panel balances-panel">
-                <h2>Balances</h2>
-                <div id="balances-container">
-                    <div class="balance-item">
-                        <span class="asset">USDT</span>
-                        <span class="amount">10,000.00</span>
+            <!-- Tables Row -->
+            <section class="tables-row">
+                <!-- Open Orders Panel -->
+                <div class="panel table-panel">
+                    <div class="panel-header">
+                        <h2>Open Orders</h2>
+                        <span class="panel-badge" id="orders-count">0</span>
                     </div>
-                    <div class="balance-item">
-                        <span class="asset">BTC</span>
-                        <span class="amount">0.00</span>
+                    <div class="table-container">
+                        <table id="orders-table">
+                            <thead>
+                                <tr>
+                                    <th>Level</th>
+                                    <th>Side</th>
+                                    <th>Price</th>
+                                    <th>Qty</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr class="empty-row">
+                                    <td colspan="5">No open orders</td>
+                                </tr>
+                            </tbody>
+                        </table>
                     </div>
                 </div>
-            </section>
 
-            <!-- Grid Visualization -->
-            <section class="panel grid-panel">
-                <h2>Grid Levels</h2>
-                <div class="grid-visualization" id="grid-visualization">
-                    <!-- Grid levels will be rendered here -->
-                </div>
-            </section>
-
-            <!-- Open Orders Panel -->
-            <section class="panel orders-panel">
-                <h2>Open Orders</h2>
-                <div class="table-container">
-                    <table id="orders-table">
-                        <thead>
-                            <tr>
-                                <th>Level</th>
-                                <th>Side</th>
-                                <th>Price</th>
-                                <th>Quantity</th>
-                                <th>Status</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <!-- Orders will be rendered here -->
-                        </tbody>
-                    </table>
-                </div>
-            </section>
-
-            <!-- Recent Trades Panel -->
-            <section class="panel trades-panel">
-                <h2>Recent Trades</h2>
-                <div class="table-container">
-                    <table id="trades-table">
-                        <thead>
-                            <tr>
-                                <th>Time</th>
-                                <th>Side</th>
-                                <th>Price</th>
-                                <th>Quantity</th>
-                                <th>P&L</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <!-- Trades will be rendered here -->
-                        </tbody>
-                    </table>
+                <!-- Recent Trades Panel -->
+                <div class="panel table-panel">
+                    <div class="panel-header">
+                        <h2>Recent Trades</h2>
+                        <span class="panel-badge" id="trades-count">0</span>
+                    </div>
+                    <div class="table-container">
+                        <table id="trades-table">
+                            <thead>
+                                <tr>
+                                    <th>Time</th>
+                                    <th>Side</th>
+                                    <th>Price</th>
+                                    <th>Qty</th>
+                                    <th>P&L</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr class="empty-row">
+                                    <td colspan="5">No trades yet</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </section>
         </main>
 
         <footer>
-            <p>Grid Trading Bot v0.1.0 | <span id="last-update">-</span></p>
+            <div class="footer-left">
+                Grid Trading Bot
+            </div>
+            <div class="footer-right">
+                Last update: <span id="last-update">-</span>
+            </div>
         </footer>
     </div>
 
