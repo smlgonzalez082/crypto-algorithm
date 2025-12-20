@@ -1,0 +1,186 @@
+name: Tests
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  test-unit:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        node-version: [18.x, 20.x]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run unit tests
+        run: npm run test:unit
+
+      - name: Upload coverage to Codecov
+        if: matrix.node-version == '20.x'
+        uses: codecov/codecov-action@v4
+        with:
+          files: ./coverage/lcov.info
+          flags: unit
+          name: unit-tests
+
+  test-integration:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Use Node.js 20.x
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20.x
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run integration tests
+        run: npm run test:integration
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          files: ./coverage/lcov.info
+          flags: integration
+          name: integration-tests
+
+  test-e2e:
+    name: E2E Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Use Node.js 20.x
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20.x
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps
+
+      - name: Run E2E tests
+        run: npm run test:e2e
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 30
+
+  typecheck:
+    name: TypeScript Type Check
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Use Node.js 20.x
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20.x
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type check
+        run: npm run typecheck
+
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Use Node.js 20.x
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20.x
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run linter
+        run: npm run lint
+
+  coverage:
+    name: Coverage Report
+    runs-on: ubuntu-latest
+    needs: [test-unit, test-integration]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Use Node.js 20.x
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20.x
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate coverage report
+        run: npm run test:coverage
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          files: ./coverage/lcov.info
+          flags: all
+          name: all-tests
+
+      - name: Comment PR with coverage
+        if: github.event_name == 'pull_request'
+        uses: romeovs/lcov-reporter-action@v0.3.1
+        with:
+          lcov-file: ./coverage/lcov.info
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+  all-tests-pass:
+    name: All Tests Pass
+    runs-on: ubuntu-latest
+    needs: [test-unit, test-integration, test-e2e, typecheck, lint]
+    if: always()
+
+    steps:
+      - name: Check test results
+        run: |
+          if [ "${{ needs.test-unit.result }}" != "success" ] || \
+             [ "${{ needs.test-integration.result }}" != "success" ] || \
+             [ "${{ needs.test-e2e.result }}" != "success" ] || \
+             [ "${{ needs.typecheck.result }}" != "success" ] || \
+             [ "${{ needs.lint.result }}" != "success" ]; then
+            echo "One or more test jobs failed"
+            exit 1
+          fi
+          echo "All tests passed successfully!"

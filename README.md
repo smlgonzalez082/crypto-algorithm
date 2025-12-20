@@ -1,212 +1,362 @@
-# Crypto Grid Trading Bot
+# Crypto Grid Trading Bot 📈
 
-A grid trading bot for Binance with a web-based dashboard for monitoring and control.
+A production-ready, multi-pair grid trading bot for Binance.US with advanced portfolio management, real-time web dashboard, and AWS deployment automation.
 
-## Features
+[![Tests](https://github.com/YOUR_USERNAME/cryptotrading/workflows/Tests/badge.svg)](https://github.com/YOUR_USERNAME/cryptotrading/actions)
+[![Coverage](https://codecov.io/gh/YOUR_USERNAME/cryptotrading/branch/main/graph/badge.svg)](https://codecov.io/gh/YOUR_USERNAME/cryptotrading)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-- **Grid Trading Strategy**: Automated buy/sell orders across a price range
-- **Web Dashboard**: Real-time monitoring of trades, orders, and P&L
-- **Simulation Mode**: Paper trading to test strategies without risking funds
-- **Risk Management**: Stop loss, daily loss limits, and position sizing
-- **AWS Ready**: Terraform infrastructure for production deployment
+## ✨ Features
 
-## Quick Start
+### Trading
+- 🤖 **Grid Trading Strategy** - Automated buy/sell orders across price ranges
+- 📊 **Multi-Pair Portfolio** - Trade multiple cryptocurrencies simultaneously
+- 🎯 **Correlation-Aware Allocation** - Optimize diversification with correlation analysis
+- ⚡ **Real-Time Price Feeds** - WebSocket streams for instant market data
+- 💰 **Kelly-Inspired Position Sizing** - Optimal capital allocation
 
-### Prerequisites
+### Risk Management
+- 🛡️ **Circuit Breakers** - Auto-pause on consecutive losses, daily limits, drawdown
+- 📉 **Three Risk Strategies** - Conservative, Moderate, Aggressive profiles
+- 🔔 **Risk Event Tracking** - Complete audit trail of all risk events
+- 📈 **Volatility-Weighted Sizing** - Adjust positions based on market volatility
+- 🎲 **Simulation Mode** - Paper trading for testing strategies
 
-- Python 3.11+
-- Docker (optional, for deployment)
-- Binance account with API access
+### Dashboard
+- 📱 **Responsive Web UI** - Works on desktop, tablet, and mobile
+- 📊 **Real-Time Updates** - WebSocket-powered live data
+- 📈 **Portfolio Analytics** - Correlation matrix, volatility indicators, performance charts
+- 🔄 **Live Grid Visualization** - See your grid levels and orders in real-time
+- 📜 **Trade History** - Complete record of all executed trades
+
+### Infrastructure
+- ☁️ **AWS Deployment** - Production-ready Terraform infrastructure
+- 🔐 **Cognito Authentication** - Secure user management with MFA support
+- 🚀 **CI/CD Pipeline** - Automated testing and deployment via GitHub Actions
+- 📝 **Comprehensive Logging** - CloudWatch integration for monitoring
+- 🧪 **200+ Tests** - Unit, integration, and E2E test coverage
+
+## 🚀 Quick Start
+
+### Deploy to AWS (Recommended)
+
+```bash
+# 1. Configure GitHub Secrets (see QUICK_START.md)
+# 2. Push to GitHub
+git push origin main
+
+# 3. Visit GitHub Actions to monitor deployment
+# 4. Access your dashboard at the ALB URL provided
+```
+
+**[📖 Full Deployment Guide](./QUICK_START.md)**
 
 ### Local Development
 
-1. **Clone and setup**:
-   ```bash
-   cd cryptotrading
-   python -m venv venv
-   source venv/bin/activate  # On Windows: venv\Scripts\activate
-   pip install -r requirements.txt
-   ```
-
-2. **Configure environment**:
-   ```bash
-   cp .env.example .env
-   # Edit .env with your settings
-   ```
-
-3. **Run the bot**:
-   ```bash
-   python -m src.main
-   ```
-
-4. **Open the dashboard**:
-   Visit http://localhost:8000
-
-### Using Docker
-
 ```bash
-# Build and run
-docker-compose up -d
+# 1. Install dependencies
+npm install
 
-# View logs
-docker-compose logs -f
+# 2. Configure environment
+cp .env.example .env
+# Edit .env with your Binance API keys
 
-# Stop
-docker-compose down
+# 3. Run in development mode
+npm run dev
+
+# 4. Open dashboard
+open http://localhost:3001
 ```
 
-## Configuration
+## 📋 Requirements
 
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `BINANCE_API_KEY` | Your Binance API key | - |
-| `BINANCE_API_SECRET` | Your Binance API secret | - |
-| `BINANCE_TESTNET` | Use Binance testnet | `true` |
-| `TRADING_PAIR` | Trading pair symbol | `BTCUSDT` |
-| `GRID_UPPER` | Upper price bound | `45000` |
-| `GRID_LOWER` | Lower price bound | `40000` |
-| `GRID_COUNT` | Number of grid levels | `10` |
-| `GRID_AMOUNT` | Amount per grid order | `0.001` |
-| `SIMULATION_MODE` | Enable paper trading | `true` |
+- **Node.js** 18.0.0 or higher
+- **Binance.US Account** with API access
+- **AWS Account** (for production deployment)
+- **Minimum Capital**: $500 per trading pair recommended
 
-## Grid Trading Strategy
+## 🏗️ Architecture
 
-The bot implements a classic grid trading strategy:
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    Web Dashboard (React-like)               │
+│  Portfolio View  │  Grid Viz  │  Risk Mgmt  │  Analytics   │
+└─────────────────────┬───────────────────────────────────────┘
+                      │
+                      ▼ WebSocket
+┌─────────────────────────────────────────────────────────────┐
+│               Express.js API Server                          │
+│  /api/status  │  /api/grid  │  /api/trades  │  /api/risk   │
+└─────────────────────┬───────────────────────────────────────┘
+                      │
+        ┌─────────────┼─────────────┐
+        ▼             ▼             ▼
+┌───────────────┐ ┌────────────┐ ┌──────────────┐
+│ Portfolio Bot │ │ Risk Mgr   │ │ Correlation  │
+│ - Multi-pair  │ │ - Circuits │ │ - Analysis   │
+│ - Allocation  │ │ - Limits   │ │ - Volatility │
+└───────┬───────┘ └──────┬─────┘ └──────┬───────┘
+        │                │                │
+        └────────────────┼────────────────┘
+                         ▼
+                ┌────────────────┐
+                │  Binance API   │
+                │  - WebSocket   │
+                │  - REST        │
+                └────────────────┘
+```
 
-1. Define a price range with upper and lower bounds
-2. Divide the range into N grid levels
+## 📊 Trading Strategy
+
+### Grid Trading Basics
+1. Define price range (upper/lower bounds)
+2. Create N grid levels with equal spacing
 3. Place buy orders below current price
 4. Place sell orders above current price
-5. When a buy fills → place sell one level up
-6. When a sell fills → place buy one level down
-7. Profit from the spread between levels
+5. When buy fills → place sell one level up
+6. When sell fills → place buy one level down
+7. Profit = spread between levels - fees
 
-### Grid Types
+### Recommended Pairs
+- **DOGE/USDT** - High volatility, low correlation
+- **XLM/USDT** - Payment-focused, stable
 
-- **Arithmetic**: Equal price spacing between levels
-- **Geometric**: Equal percentage spacing (better for volatile markets)
+[See full configuration guide](./CLAUDE.md#recommended-pairs-for-binanceus)
 
-## AWS Deployment
+## 🎯 Risk Strategies
 
-### Prerequisites
+| Strategy | Exposure | Daily Loss | Drawdown | Consecutive Losses |
+|----------|----------|------------|----------|-------------------|
+| **Conservative** | 60% | 2.5% | 10% | 3 |
+| **Moderate** | 75% | 5% | 15% | 5 |
+| **Aggressive** | 90% | 10% | 25% | 7 |
 
-- AWS CLI configured
-- Terraform installed
-- SSH key pair in AWS
+## 🧪 Testing
 
-### Deploy
+```bash
+# Run all tests
+npm test
 
-1. **Setup Terraform**:
-   ```bash
-   cd infrastructure/terraform
-   cp terraform.tfvars.example terraform.tfvars
-   # Edit terraform.tfvars with your values
-   ```
+# Unit tests only
+npm run test:unit
 
-2. **Deploy infrastructure**:
-   ```bash
-   terraform init
-   terraform plan
-   terraform apply
-   ```
+# Integration tests
+npm run test:integration
 
-3. **Configure the server**:
-   ```bash
-   # SSH into the instance (command shown in terraform output)
-   ssh -i ~/.ssh/your-key.pem ec2-user@<IP>
+# E2E tests
+npm run test:e2e
 
-   # Run setup script
-   ./scripts/setup_ec2.sh
+# With coverage
+npm run test:coverage
 
-   # Copy files and configure .env
-   # Then deploy
-   ./scripts/deploy.sh
-   ```
+# Watch mode
+npm run test:watch
+```
 
-4. **Set API secrets** (via AWS Secrets Manager):
-   ```bash
-   aws secretsmanager put-secret-value \
-     --secret-id trading-bot/binance-api \
-     --secret-string '{"api_key":"YOUR_KEY","api_secret":"YOUR_SECRET"}'
-   ```
+**Test Coverage**: ~85% (200+ tests across unit, integration, and E2E)
 
-## Project Structure
+[📖 Testing Guide](./tests/README.md)
+
+## 📦 Deployment Options
+
+### Option 1: Automatic (GitHub Actions)
+- Push to main branch
+- Automated testing, building, and deployment
+- Zero-downtime updates
+- [Setup Guide](./DEPLOYMENT.md#automatic-deployment)
+
+### Option 2: Quick Script
+```bash
+./scripts/deploy.sh
+# Follow interactive prompts
+```
+
+### Option 3: Manual Terraform
+```bash
+cd terraform
+terraform init
+terraform apply
+```
+
+[📖 Complete Deployment Guide](./DEPLOYMENT.md)
+
+## 🔧 Configuration
+
+### Environment Variables
+
+```bash
+# Binance API
+BINANCE_API_KEY=your_key
+BINANCE_API_SECRET=your_secret
+BINANCE_US=true
+
+# Portfolio Mode
+PORTFOLIO_MODE=true
+TOTAL_CAPITAL=2000
+RISK_STRATEGY=moderate
+
+# Simulation (KEEP TRUE INITIALLY!)
+SIMULATION_MODE=true
+
+# AWS Cognito (Production)
+COGNITO_USER_POOL_ID=us-east-1_XXXXX
+COGNITO_CLIENT_ID=your_client_id
+COGNITO_REGION=us-east-1
+```
+
+[📖 Full Configuration Guide](./CLAUDE.md#configuration)
+
+## 📡 API Endpoints
+
+### Status & Configuration
+- `GET /api/health` - Health check
+- `GET /api/status` - Bot status
+- `GET /api/config` - Configuration
+- `GET /api/portfolio` - Portfolio state
+
+### Trading Data
+- `GET /api/grid` - Grid levels
+- `GET /api/orders` - Active orders
+- `GET /api/trades` - Trade history
+- `GET /api/balances` - Account balances
+
+### Controls
+- `POST /api/portfolio/start` - Start trading
+- `POST /api/stop` - Stop bot
+- `PUT /api/simulation` - Toggle simulation
+- `PUT /api/portfolio/strategy` - Change risk strategy
+
+### Risk & Analytics
+- `GET /api/risk/events` - Risk events
+- `GET /api/correlation` - Correlation matrix
+
+[📖 Full API Documentation](./CLAUDE.md#api-endpoints)
+
+## 📂 Project Structure
 
 ```
 cryptotrading/
 ├── src/
-│   ├── bot/
-│   │   ├── grid.py          # Grid trading logic
-│   │   └── risk.py          # Risk management
-│   ├── exchange/
-│   │   └── binance.py       # Binance API client
-│   ├── models/
-│   │   ├── schemas.py       # Data models
-│   │   └── database.py      # Database setup
-│   ├── utils/
-│   │   ├── config.py        # Configuration
-│   │   └── logger.py        # Logging
-│   ├── web/
-│   │   ├── api.py           # FastAPI routes
-│   │   ├── templates/       # HTML templates
-│   │   └── static/          # CSS/JS assets
-│   └── main.py              # Entry point
-├── tests/
-├── infrastructure/
-│   └── terraform/           # AWS infrastructure
-├── scripts/                 # Deployment scripts
-├── Dockerfile
-├── docker-compose.yml
-└── requirements.txt
+│   ├── bot/              # Trading bot logic
+│   │   ├── grid.ts       # Single-pair grid bot
+│   │   ├── portfolioBot.ts    # Multi-pair bot
+│   │   ├── portfolioRisk.ts   # Risk management
+│   │   └── risk.ts       # Basic risk rules
+│   ├── exchange/         # Binance API integration
+│   ├── analysis/         # Correlation & analytics
+│   ├── models/           # Database models
+│   ├── web/              # Express server & UI
+│   ├── middleware/       # Auth & validation
+│   └── utils/            # Config & logging
+├── terraform/            # AWS infrastructure
+│   ├── modules/
+│   │   ├── networking/   # VPC, subnets
+│   │   ├── compute/      # EC2, ALB
+│   │   ├── cognito/      # Authentication
+│   │   └── secrets/      # Secrets Manager
+│   └── main.tf
+├── tests/                # Test suite
+│   ├── bot/              # Unit tests
+│   ├── integration/      # API tests
+│   └── e2e/              # Playwright tests
+├── .github/workflows/    # CI/CD pipelines
+├── scripts/              # Deployment scripts
+└── data/                 # SQLite database
 ```
 
-## API Endpoints
+## 🔐 Security
 
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/` | GET | Web dashboard |
-| `/api/status` | GET | Bot status |
-| `/api/config` | GET/POST | Grid configuration |
-| `/api/bot/start` | POST | Start the bot |
-| `/api/bot/stop` | POST | Stop the bot |
-| `/api/grid-levels` | GET | Current grid levels |
-| `/api/orders` | GET | Open orders |
-| `/api/trades` | GET | Trade history |
-| `/api/balances` | GET | Account balances |
-| `/api/simulate/price` | POST | Simulate price (sim mode) |
-| `/ws` | WebSocket | Real-time updates |
+- ✅ **IP-Restricted Access** - Configurable allowed IPs
+- ✅ **Cognito Authentication** - JWT tokens with MFA support
+- ✅ **Encrypted Secrets** - AWS Secrets Manager
+- ✅ **HTTPS Only** - SSL/TLS encryption
+- ✅ **Encrypted EBS** - Data encryption at rest
+- ✅ **IMDSv2** - EC2 metadata security
+- ✅ **Least Privilege IAM** - Minimal required permissions
 
-## Risk Management
+[📖 Security Best Practices](./DEPLOYMENT.md#security-best-practices)
 
-The bot includes several risk controls:
+## 💰 Costs
 
-- **Stop Loss**: Automatically stops if price drops X% below grid
-- **Daily Loss Limit**: Stops trading after reaching daily loss threshold
-- **Max Open Orders**: Limits total number of open orders
-- **Position Sizing**: Limits exposure per trade
-- **Max Drawdown**: Stops if portfolio drawdown exceeds threshold
+**AWS Monthly Estimate**:
+- EC2 t3.small: ~$15
+- Application Load Balancer: ~$20
+- Other services: ~$5
+- **Total: ~$40/month**
 
-## Testing
+[💡 Cost Optimization Tips](./terraform/README.md#cost-optimization)
+
+## 📚 Documentation
+
+- **[Quick Start](./QUICK_START.md)** - Fast deployment guide
+- **[Full Deployment](./DEPLOYMENT.md)** - Comprehensive deployment docs
+- **[Project Guide](./CLAUDE.md)** - Architecture and features
+- **[Terraform Guide](./terraform/README.md)** - Infrastructure details
+- **[Testing Guide](./tests/README.md)** - Test documentation
+- **[API Reference](./CLAUDE.md#api-endpoints)** - Complete API docs
+
+## 🛠️ Development
 
 ```bash
-# Run tests
-pytest tests/
+# Install dependencies
+npm install
 
-# With coverage
-pytest tests/ --cov=src
+# Development mode with hot reload
+npm run dev
+
+# Build for production
+npm run build
+
+# Start production build
+npm start
+
+# Run linter
+npm run lint
+
+# Format code
+npm run format
+
+# Type check
+npm run typecheck
 ```
 
-## Disclaimer
+## 🤝 Contributing
 
-**USE AT YOUR OWN RISK**
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Write tests for your changes
+4. Ensure all tests pass (`npm test`)
+5. Commit your changes (`git commit -m 'Add amazing feature'`)
+6. Push to the branch (`git push origin feature/amazing-feature`)
+7. Open a Pull Request
 
-This software is for educational purposes. Cryptocurrency trading carries significant risk. You could lose some or all of your investment. Always:
+## ⚠️ Disclaimer
 
-- Start with simulation mode
-- Test thoroughly with small amounts
+**This bot is for educational purposes.**
+
+- Trading cryptocurrencies involves substantial risk
+- You can lose all your invested capital
+- Past performance does not guarantee future results
+- ALWAYS test in simulation mode first
+- Start with small amounts
 - Never invest more than you can afford to lose
-- Understand the strategy before deploying
+- Do your own research and understand the risks
 
-## License
+**Use at your own risk. The authors are not responsible for financial losses.**
 
-MIT
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](./LICENSE) file for details.
+
+## 🙏 Acknowledgments
+
+- Binance API for market data
+- AWS for infrastructure
+- Chart.js for visualizations
+- The open-source community
+
+---
+
+**Built with ❤️ by crypto enthusiasts, for crypto enthusiasts**
+
+**Happy Trading! 🚀📈**

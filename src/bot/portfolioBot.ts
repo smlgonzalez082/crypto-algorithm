@@ -1,4 +1,5 @@
 import { createLogger } from '../utils/logger.js';
+import { config } from '../utils/config.js';
 import { BinanceClient } from '../exchange/binance.js';
 import { binanceStreams, TickerData } from '../exchange/binanceStreams.js';
 import { PortfolioRiskManager } from './portfolioRisk.js';
@@ -325,13 +326,25 @@ export class PortfolioGridBot {
       'Placing initial orders'
     );
 
-    // Place buy orders below current price
+    // Place buy orders below current price (skip levels that already have orders)
     for (const level of belowPrice) {
+      // Skip if this level already has an active buy order
+      if (level.buyOrderId && pairBot.activeOrders.has(level.buyOrderId)) {
+        logger.debug({ symbol, level: level.level }, 'Skipping level - already has buy order');
+        continue;
+      }
       await this.placeBuyOrder(symbol, pairBot, level);
     }
 
-    // Note: For grid trading, we typically only place buy orders initially
-    // Sell orders are placed after buys are filled
+    // Place sell orders above current price (skip levels that already have orders)
+    for (const level of abovePrice) {
+      // Skip if this level already has an active sell order
+      if (level.sellOrderId && pairBot.activeOrders.has(level.sellOrderId)) {
+        logger.debug({ symbol, level: level.level }, 'Skipping level - already has sell order');
+        continue;
+      }
+      await this.placeSellOrder(symbol, pairBot, level);
+    }
   }
 
   private async placeBuyOrder(
@@ -666,11 +679,16 @@ export class PortfolioGridBot {
       clearInterval(this.pricePollingInterval);
     }
 
+    logger.debug('Starting price polling interval (5s)');
+
     // Poll prices every 5 seconds for all pairs
     this.pricePollingInterval = setInterval(async () => {
+      logger.debug('Price poll tick');
       for (const [symbol] of this.pairBots) {
         try {
+          logger.debug({ symbol }, 'Fetching price for symbol');
           const price = await this.fetchPriceForSymbol(symbol);
+          logger.debug({ symbol, price }, 'Price fetched successfully');
           this.handlePriceUpdate(symbol, price);
         } catch (error) {
           logger.error({ error, symbol }, 'Failed to fetch price');
@@ -835,8 +853,13 @@ export class PortfolioGridBot {
       if (savedState && savedGrid.length > 0) {
         const pairBot = this.pairBots.get(pairConfig.symbol);
         if (pairBot) {
-          // Restore grid levels
-          pairBot.gridLevels = savedGrid;
+          // Restore grid levels but clear old order IDs (they're from previous session)
+          pairBot.gridLevels = savedGrid.map(level => ({
+            ...level,
+            buyOrderId: null,
+            sellOrderId: null,
+            status: 'empty'
+          }));
           pairBot.positionSize = savedState.positionSize;
           pairBot.positionValue = savedState.positionValue;
           pairBot.realizedPnl = savedState.realizedPnl;
@@ -849,7 +872,7 @@ export class PortfolioGridBot {
               trades: savedState.tradesCount,
               pnl: savedState.realizedPnl,
             },
-            'Restored pair state from database'
+            'Restored pair state from database (cleared old order IDs)'
           );
         }
       }
@@ -875,6 +898,13 @@ export class PortfolioGridBot {
    */
   getRiskEvents(limit = 50): ReturnType<typeof tradingDb.getRecentRiskEvents> {
     return tradingDb.getRecentRiskEvents(limit);
+  }
+
+  /**
+   * Gets current risk limits configuration
+   */
+  getRiskLimits() {
+    return this.riskManager.getLimits();
   }
 
   // ===========================================================================
@@ -906,6 +936,30 @@ export class PortfolioGridBot {
     const roundedQuantity = this.client.roundQuantity(quantity);
 
     const clientOrderId = `grid_${gridLevel}_${side}_${Date.now()}`;
+
+    // In simulation mode, create a simulated order instead of placing a real one
+    if (config.simulationMode) {
+      const simulatedOrder: Order = {
+        orderId: `SIM_${symbol}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        clientOrderId,
+        tradingPair: symbol,
+        side,
+        orderType: 'LIMIT',
+        price: roundedPrice,
+        quantity: roundedQuantity,
+        filledQuantity: 0,
+        status: 'NEW',
+        gridLevel,
+        createdAt: new Date(),
+      };
+
+      logger.info(
+        { orderId: simulatedOrder.orderId, symbol, side, price: roundedPrice, quantity: roundedQuantity },
+        '[SIMULATION] Order placed'
+      );
+
+      return simulatedOrder;
+    }
 
     try {
       const result = await this.client['client'].submitNewOrder({
@@ -1004,22 +1058,60 @@ export class PortfolioGridBot {
       });
     }
 
-    return {
+    // Create a partial state without risk metrics to avoid circular dependency
+    const partialState: PortfolioState = {
       status: this.status,
       startTime: this.startTime,
       totalCapital: this.config.totalCapital,
       availableCapital: this.availableCapital,
       allocatedCapital: this.allocatedCapital,
       pairs,
-      riskMetrics: this.getRiskMetrics(),
+      riskMetrics: {} as PortfolioRiskMetrics, // Placeholder to avoid circular call
       correlationMatrix: correlationAnalyzer.getCorrelationMatrix(),
       lastRebalance: null,
       pauseReason: this.riskManager.getStatus().pauseReason,
     };
+
+    // Now calculate risk metrics using the partial state
+    partialState.riskMetrics = this.riskManager.calculateRiskMetrics(partialState);
+
+    return partialState;
   }
 
   getRiskMetrics(): PortfolioRiskMetrics {
-    return this.riskManager.calculateRiskMetrics(this.getPortfolioState());
+    // Calculate risk metrics without creating a full portfolio state to avoid recursion
+    const pairs = new Map<string, PairState>();
+
+    for (const [symbol, pairBot] of this.pairBots) {
+      pairs.set(symbol, {
+        config: pairBot.config,
+        status: pairBot.status,
+        currentPrice: pairBot.currentPrice,
+        gridLevels: pairBot.gridLevels,
+        activeOrders: pairBot.activeOrders.size,
+        positionSize: pairBot.positionSize,
+        positionValue: pairBot.positionValue + pairBot.positionSize * pairBot.currentPrice,
+        realizedPnl: pairBot.realizedPnl,
+        unrealizedPnl: pairBot.unrealizedPnl,
+        tradesCount: pairBot.tradesCount,
+        lastUpdate: new Date(),
+      });
+    }
+
+    const partialState: PortfolioState = {
+      status: this.status,
+      startTime: this.startTime,
+      totalCapital: this.config.totalCapital,
+      availableCapital: this.availableCapital,
+      allocatedCapital: this.allocatedCapital,
+      pairs,
+      riskMetrics: {} as PortfolioRiskMetrics,
+      correlationMatrix: correlationAnalyzer.getCorrelationMatrix(),
+      lastRebalance: null,
+      pauseReason: this.riskManager.getStatus().pauseReason,
+    };
+
+    return this.riskManager.calculateRiskMetrics(partialState);
   }
 
   getStatus(): {

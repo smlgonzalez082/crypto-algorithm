@@ -38,6 +38,11 @@ const ConfigSchema = z.object({
   // Web interface
   serverPort: z.number().int().default(3001),
 
+  // AWS Cognito (optional - for production deployment)
+  cognitoUserPoolId: z.string().default(''),
+  cognitoClientId: z.string().default(''),
+  cognitoRegion: z.string().default(''),
+
   // Logging
   logLevel: z.enum(['debug', 'info', 'warn', 'error']).default('info'),
 });
@@ -75,6 +80,9 @@ function loadConfig(): Config {
       ? parseInt(process.env.MAX_OPEN_ORDERS, 10)
       : undefined,
     serverPort: process.env.SERVER_PORT ? parseInt(process.env.SERVER_PORT, 10) : undefined,
+    cognitoUserPoolId: process.env.COGNITO_USER_POOL_ID,
+    cognitoClientId: process.env.COGNITO_CLIENT_ID,
+    cognitoRegion: process.env.COGNITO_REGION,
     logLevel: process.env.LOG_LEVEL?.toLowerCase() as Config['logLevel'] | undefined,
   };
 
@@ -126,7 +134,7 @@ export function getRecommendedPairs(): PairConfig[] {
       quoteAsset: 'USDT',
       gridUpper: 0.18,     // Upper bound ~28% above current price
       gridLower: 0.10,     // Lower bound ~29% below current price
-      gridCount: 15,       // 15 grid levels (~$0.0053 spacing)
+      gridCount: 7,        // 8 grid levels (~$0.01 spacing) - prevents duplicates after tickSize rounding
       amountPerGrid: 100,  // 100 DOGE per grid (~$14)
       gridType: 'arithmetic',
       allocationPercent: 50,  // 50% of portfolio
@@ -140,7 +148,7 @@ export function getRecommendedPairs(): PairConfig[] {
       quoteAsset: 'USDT',
       gridUpper: 0.32,     // Upper bound ~30% above current price
       gridLower: 0.17,     // Lower bound ~31% below current price
-      gridCount: 15,       // 15 grid levels (~$0.01 spacing)
+      gridCount: 7,        // 8 grid levels (~$0.02 spacing)
       amountPerGrid: 50,   // 50 XLM per grid (~$12)
       gridType: 'arithmetic',
       allocationPercent: 50,  // 50% of portfolio

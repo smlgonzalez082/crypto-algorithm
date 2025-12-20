@@ -10,6 +10,7 @@ import { PortfolioGridBot } from '../bot/portfolioBot.js';
 import { BinanceClient } from '../exchange/binance.js';
 import { RiskManager } from '../bot/risk.js';
 import { correlationAnalyzer } from '../analysis/correlation.js';
+import { initCognitoVerifier, authenticateToken } from '../middleware/auth.js';
 import type { RiskStrategy } from '../types/portfolio.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -33,6 +34,15 @@ export class WebServer {
     this.binanceClient = new BinanceClient();
     this.riskManager = new RiskManager();
     this.isPortfolioMode = config.portfolioMode;
+
+    // Initialize Cognito authentication if configured
+    if (config.cognitoUserPoolId && config.cognitoClientId) {
+      initCognitoVerifier(config.cognitoUserPoolId, config.cognitoClientId);
+      logger.info('Cognito authentication enabled');
+    } else {
+      logger.info('Cognito not configured, authentication disabled (local dev mode)');
+    }
+
     this.setupMiddleware();
     this.setupRoutes();
     this.setupWebSocket();
@@ -40,6 +50,18 @@ export class WebServer {
 
   private setupMiddleware(): void {
     this.app.use(express.json());
+
+    // Apply authentication to all /api/* routes except public endpoints
+    this.app.use('/api/*', (req, res, next) => {
+      // Skip authentication for public endpoints
+      if (req.path === '/api/health' || req.path === '/api/auth/config') {
+        next();
+        return;
+      }
+      // Apply authentication middleware
+      authenticateToken(req, res, next);
+    });
+
     this.app.use(express.static(path.join(__dirname, 'static')));
   }
 
@@ -47,6 +69,17 @@ export class WebServer {
     // Health check
     this.app.get('/api/health', (_req: Request, res: Response) => {
       res.json({ status: 'ok', timestamp: new Date().toISOString() });
+    });
+
+    // Get Cognito configuration (public endpoint)
+    this.app.get('/api/auth/config', (_req: Request, res: Response) => {
+      const authEnabled = !!(config.cognitoUserPoolId && config.cognitoClientId);
+      res.json({
+        enabled: authEnabled,
+        userPoolId: config.cognitoUserPoolId || null,
+        clientId: config.cognitoClientId || null,
+        region: config.cognitoRegion || null,
+      });
     });
 
     // Get bot status (supports both single and portfolio mode)
@@ -261,6 +294,21 @@ export class WebServer {
       } catch (error) {
         logger.error({ error }, 'Failed to get risk events');
         res.status(500).json({ error: 'Failed to get risk events' });
+      }
+    });
+
+    // Get risk limits
+    this.app.get('/api/risk/limits', (_req: Request, res: Response) => {
+      try {
+        if (this.portfolioBot) {
+          const limits = this.portfolioBot.getRiskLimits();
+          res.json(limits);
+        } else {
+          res.json(null);
+        }
+      } catch (error) {
+        logger.error({ error }, 'Failed to get risk limits');
+        res.status(500).json({ error: 'Failed to get risk limits' });
       }
     });
 

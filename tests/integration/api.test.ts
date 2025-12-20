@@ -1,0 +1,364 @@
+import { jest } from '@jest/globals';
+import request from 'supertest';
+import { WebServer } from '../../src/web/server.js';
+
+// Mock Binance client
+jest.mock('../../src/exchange/binance.js', () => ({
+  BinanceClient: jest.fn().mockImplementation(() => ({
+    connect: jest.fn().mockResolvedValue(undefined),
+    disconnect: jest.fn().mockResolvedValue(undefined),
+    getCurrentPrice: jest.fn().mockResolvedValue(0.14),
+    getBalance: jest.fn().mockResolvedValue({ free: 1000, locked: 0, total: 1000 }),
+    placeOrder: jest.fn().mockResolvedValue({
+      orderId: '123',
+      symbol: 'DOGEUSDT',
+      side: 'BUY',
+      price: 0.14,
+      quantity: 100,
+      status: 'NEW',
+    }),
+  })),
+}));
+
+// Mock logger
+jest.mock('../../src/utils/logger.js', () => ({
+  createLogger: () => ({
+    info: jest.fn(),
+    warn: jest.fn(),
+    error: jest.fn(),
+    debug: jest.fn(),
+  }),
+}));
+
+describe('API Integration Tests', () => {
+  let server: WebServer;
+  let app: any;
+
+  beforeAll(() => {
+    server = new WebServer();
+    app = (server as any).app;
+  });
+
+  afterAll(async () => {
+    await server.stop();
+  });
+
+  describe('Health Check', () => {
+    it('GET /api/health should return OK', async () => {
+      const response = await request(app)
+        .get('/api/health')
+        .expect(200);
+
+      expect(response.body).toHaveProperty('status', 'ok');
+      expect(response.body).toHaveProperty('timestamp');
+    });
+  });
+
+  describe('Auth Config', () => {
+    it('GET /api/auth/config should return auth configuration', async () => {
+      const response = await request(app)
+        .get('/api/auth/config')
+        .expect(200);
+
+      expect(response.body).toHaveProperty('enabled');
+      expect(typeof response.body.enabled).toBe('boolean');
+    });
+  });
+
+  describe('Bot Status', () => {
+    it('GET /api/status should return bot status', async () => {
+      const response = await request(app)
+        .get('/api/status')
+        .expect(200);
+
+      expect(response.body).toHaveProperty('status');
+      expect(response.body).toHaveProperty('totalCapital');
+      expect(response.body).toHaveProperty('portfolioValue');
+    });
+
+    it('should show stopped status initially', async () => {
+      const response = await request(app)
+        .get('/api/status')
+        .expect(200);
+
+      expect(response.body.status).toBe('stopped');
+    });
+  });
+
+  describe('Configuration', () => {
+    it('GET /api/config should return bot configuration', async () => {
+      const response = await request(app)
+        .get('/api/config')
+        .expect(200);
+
+      expect(response.body).toHaveProperty('tradingPair');
+      expect(response.body).toHaveProperty('portfolioMode');
+      expect(response.body).toHaveProperty('simulationMode');
+    });
+  });
+
+  describe('Recommended Pairs', () => {
+    it('GET /api/recommended-pairs should return trading pairs', async () => {
+      const response = await request(app)
+        .get('/api/recommended-pairs')
+        .expect(200);
+
+      expect(response.body).toHaveProperty('recommended');
+      expect(response.body).toHaveProperty('alternative');
+      expect(Array.isArray(response.body.recommended)).toBe(true);
+      expect(Array.isArray(response.body.alternative)).toBe(true);
+    });
+
+    it('should include DOGEUSDT and XLMUSDT in recommended', async () => {
+      const response = await request(app)
+        .get('/api/recommended-pairs')
+        .expect(200);
+
+      const symbols = response.body.recommended.map((p: any) => p.symbol);
+      expect(symbols).toContain('DOGEUSDT');
+      expect(symbols).toContain('XLMUSDT');
+    });
+  });
+
+  describe('Portfolio Management', () => {
+    it('GET /api/portfolio should return portfolio state', async () => {
+      const response = await request(app)
+        .get('/api/portfolio')
+        .expect(200);
+
+      expect(response.body).toHaveProperty('totalCapital');
+      expect(response.body).toHaveProperty('pairs');
+      expect(Array.isArray(response.body.pairs)).toBe(true);
+    });
+
+    it('POST /api/portfolio/start should start portfolio bot', async () => {
+      const response = await request(app)
+        .post('/api/portfolio/start')
+        .send({
+          pairs: [
+            {
+              symbol: 'DOGEUSDT',
+              baseAsset: 'DOGE',
+              quoteAsset: 'USDT',
+              gridUpper: 0.18,
+              gridLower: 0.10,
+              gridCount: 7,
+              amountPerGrid: 100,
+              gridType: 'arithmetic',
+              allocationPercent: 100,
+              enabled: true,
+            },
+          ],
+        })
+        .expect(200);
+
+      expect(response.body).toHaveProperty('success', true);
+    });
+  });
+
+  describe('Grid Levels', () => {
+    it('GET /api/grid should return grid levels', async () => {
+      const response = await request(app)
+        .get('/api/grid')
+        .expect(200);
+
+      expect(typeof response.body).toBe('object');
+    });
+  });
+
+  describe('Orders', () => {
+    it('GET /api/orders should return active orders', async () => {
+      const response = await request(app)
+        .get('/api/orders')
+        .expect(200);
+
+      expect(typeof response.body).toBe('object');
+    });
+  });
+
+  describe('Balances', () => {
+    it('GET /api/balances should return account balances', async () => {
+      const response = await request(app)
+        .get('/api/balances')
+        .expect(200);
+
+      expect(typeof response.body).toBe('object');
+    });
+  });
+
+  describe('Trades', () => {
+    it('GET /api/trades should return recent trades', async () => {
+      const response = await request(app)
+        .get('/api/trades')
+        .expect(200);
+
+      expect(Array.isArray(response.body)).toBe(true);
+    });
+
+    it('GET /api/trades/history should return trade history', async () => {
+      const response = await request(app)
+        .get('/api/trades/history')
+        .expect(200);
+
+      expect(Array.isArray(response.body)).toBe(true);
+    });
+
+    it('GET /api/trades/stats should return trade statistics', async () => {
+      const response = await request(app)
+        .get('/api/trades/stats')
+        .expect(200);
+
+      expect(response.body).toHaveProperty('totalTrades');
+      expect(response.body).toHaveProperty('totalPnl');
+      expect(response.body).toHaveProperty('winRate');
+    });
+
+    it('should support limit parameter for history', async () => {
+      const response = await request(app)
+        .get('/api/trades/history?limit=10')
+        .expect(200);
+
+      expect(Array.isArray(response.body)).toBe(true);
+      expect(response.body.length).toBeLessThanOrEqual(10);
+    });
+  });
+
+  describe('Risk Management', () => {
+    it('GET /api/risk/events should return risk events', async () => {
+      const response = await request(app)
+        .get('/api/risk/events')
+        .expect(200);
+
+      expect(Array.isArray(response.body)).toBe(true);
+    });
+
+    it('GET /api/risk/limits should return risk limits', async () => {
+      const response = await request(app)
+        .get('/api/risk/limits')
+        .expect(200);
+
+      if (response.body) {
+        expect(response.body).toHaveProperty('maxTotalExposure');
+        expect(response.body).toHaveProperty('maxDailyLoss');
+        expect(response.body).toHaveProperty('maxDrawdown');
+      }
+    });
+
+    it('should support limit parameter for events', async () => {
+      const response = await request(app)
+        .get('/api/risk/events?limit=5')
+        .expect(200);
+
+      expect(Array.isArray(response.body)).toBe(true);
+      expect(response.body.length).toBeLessThanOrEqual(5);
+    });
+  });
+
+  describe('Simulation Mode', () => {
+    it('PUT /api/simulation should toggle simulation mode', async () => {
+      const response = await request(app)
+        .put('/api/simulation')
+        .send({ enabled: false })
+        .expect(200);
+
+      expect(response.body).toHaveProperty('simulationMode');
+    });
+
+    it('should validate simulation mode input', async () => {
+      const response = await request(app)
+        .put('/api/simulation')
+        .send({ enabled: 'invalid' })
+        .expect(400);
+
+      expect(response.body).toHaveProperty('error');
+    });
+  });
+
+  describe('Correlation', () => {
+    it('GET /api/correlation should return correlation matrix', async () => {
+      const response = await request(app)
+        .get('/api/correlation')
+        .expect(200);
+
+      expect(typeof response.body).toBe('object');
+    });
+  });
+
+  describe('Bot Control', () => {
+    it('POST /api/stop should stop the bot', async () => {
+      const response = await request(app)
+        .post('/api/stop')
+        .expect(200);
+
+      expect(response.body).toHaveProperty('success');
+    });
+  });
+
+  describe('Error Handling', () => {
+    it('should return 404 for non-existent endpoints', async () => {
+      await request(app)
+        .get('/api/nonexistent')
+        .expect(404);
+    });
+
+    it('should handle malformed JSON', async () => {
+      const response = await request(app)
+        .post('/api/simulation')
+        .set('Content-Type', 'application/json')
+        .send('{ invalid json }')
+        .expect(400);
+    });
+  });
+
+  describe('Strategy Updates', () => {
+    it('PUT /api/portfolio/strategy should update risk strategy', async () => {
+      const response = await request(app)
+        .put('/api/portfolio/strategy')
+        .send({ strategy: 'aggressive' })
+        .expect(200);
+
+      expect(response.body).toHaveProperty('success');
+    });
+
+    it('should validate strategy parameter', async () => {
+      const response = await request(app)
+        .put('/api/portfolio/strategy')
+        .send({ strategy: 'invalid' })
+        .expect(400);
+
+      expect(response.body).toHaveProperty('error');
+    });
+
+    it('should accept valid strategies', async () => {
+      const strategies = ['conservative', 'moderate', 'aggressive'];
+
+      for (const strategy of strategies) {
+        const response = await request(app)
+          .put('/api/portfolio/strategy')
+          .send({ strategy })
+          .expect(200);
+
+        expect(response.body.success).toBe(true);
+      }
+    });
+  });
+
+  describe('Content Type', () => {
+    it('should accept application/json', async () => {
+      await request(app)
+        .post('/api/simulation')
+        .set('Content-Type', 'application/json')
+        .send({ enabled: true })
+        .expect(200);
+    });
+
+    it('should return JSON responses', async () => {
+      const response = await request(app)
+        .get('/api/status')
+        .expect(200)
+        .expect('Content-Type', /json/);
+
+      expect(typeof response.body).toBe('object');
+    });
+  });
+});

@@ -110,8 +110,15 @@ export class BinanceStreamManager {
   private setupEventHandlers(): void {
     if (!this.wsClient) return;
 
+    // Debug: log ALL events
+    this.wsClient.on('message', (data: unknown) => {
+      logger.debug({ data: JSON.stringify(data).substring(0, 200) }, 'Raw WebSocket message received');
+      this.handleMessage(data);
+    });
+
     // Handle ticker updates (24hr rolling window)
     this.wsClient.on('formattedMessage', (data: unknown) => {
+      logger.debug({ data: JSON.stringify(data).substring(0, 200) }, 'Formatted WebSocket message received');
       this.handleMessage(data);
     });
 
@@ -168,8 +175,11 @@ export class BinanceStreamManager {
       buyerMaker?: boolean;
     };
 
-    // Handle 24hr ticker
-    if (msg.eventType === '24hrTicker' && msg.symbol) {
+    // Debug: log all messages to see what we're receiving
+    logger.debug({ eventType: msg.eventType, symbol: msg.symbol, hasPrice: !!msg.close || !!msg.lastPrice }, 'WebSocket message received');
+
+    // Handle mini ticker (24hrMiniTicker) or 24hr ticker
+    if ((msg.eventType === '24hrMiniTicker' || msg.eventType === '24hrTicker') && msg.symbol) {
       const tickerData: TickerData = {
         symbol: msg.symbol,
         price: parseFloat(msg.close || msg.lastPrice || '0'),
@@ -319,9 +329,10 @@ export class BinanceStreamManager {
       return;
     }
 
-    this.wsClient.subscribeSpotSymbol24hrTicker(symbol);
+    // Use mini ticker for individual symbol price updates (more reliable for Binance.US)
+    this.wsClient.subscribeSpotSymbolMiniTicker(symbol);
     this.subscribedSymbols.add(symbol);
-    logger.info({ symbol }, 'Subscribed to ticker stream');
+    logger.info({ symbol }, 'Subscribed to mini ticker stream');
   }
 
   /**

@@ -1,0 +1,29 @@
+# Project Configuration
+project_name = "crypto-trading-bot"
+environment  = "dev"  # dev, staging, or prod
+
+# AWS Configuration
+aws_region = "us-east-1"  # Choose your preferred AWS region
+
+# Compute Configuration
+instance_type = "t3.small"  # t3.small recommended for production, t3.micro for testing
+
+# Security Configuration
+# IMPORTANT: Replace with your actual IP address(es)
+# Get your IP: curl ifconfig.me
+# Format: ["1.2.3.4/32"] for single IP, or ["1.2.3.4/32", "5.6.7.8/32"] for multiple IPs
+allowed_ips = ["YOUR.IP.ADDRESS.HERE/32"]
+
+# SSH Key Configuration
+# Create an EC2 key pair in AWS console first
+# AWS Console → EC2 → Key Pairs → Create key pair
+ssh_key_name = "your-ssh-key-name"
+
+# Cognito Configuration
+cognito_user_email = "your-email@example.com"  # Email for initial admin user
+
+# Binance API Configuration
+# Get from Binance.US: https://www.binance.us/en/usercenter/settings/api-management
+# IMPORTANT: Never commit these to git!
+binance_api_key    = "YOUR_BINANCE_API_KEY"
+binance_api_secret = "YOUR_BINANCE_API_SECRET"

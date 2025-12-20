@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Grid Trading Bot - Advanced Portfolio Dashboard</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="auth.js"></script>
   <style>
     * {
       margin: 0;
@@ -309,6 +310,97 @@
     .grid-stat-label {
       color: #6e7681;
       margin-top: 0.2rem;
+    }
+
+    /* Enhanced grid visualization */
+    .grid-level-price {
+      position: absolute;
+      left: 4px;
+      top: -8px;
+      font-size: 0.65rem;
+      color: #8b949e;
+      background: rgba(13, 17, 23, 0.9);
+      padding: 1px 4px;
+      border-radius: 2px;
+      white-space: nowrap;
+      z-index: 5;
+    }
+
+    .grid-level.buy .grid-level-price {
+      color: #3fb950;
+      font-weight: 600;
+    }
+
+    .grid-level.sell .grid-level-price {
+      color: #f85149;
+      font-weight: 600;
+    }
+
+    .grid-current-price-label {
+      position: absolute;
+      right: 4px;
+      top: -10px;
+      font-size: 0.7rem;
+      font-weight: 600;
+      color: #f0f6fc;
+      background: #0d1117;
+      padding: 2px 6px;
+      border-radius: 3px;
+      border: 1px solid #f0f6fc;
+      white-space: nowrap;
+      z-index: 11;
+    }
+
+    .grid-details {
+      margin-top: 1rem;
+      border-top: 1px solid #30363d;
+      padding-top: 0.75rem;
+    }
+
+    .grid-details summary {
+      cursor: pointer;
+      font-size: 0.85rem;
+      color: #58a6ff;
+      padding: 0.5rem;
+      border-radius: 4px;
+      user-select: none;
+    }
+
+    .grid-details summary:hover {
+      background: #161b22;
+    }
+
+    .levels-table {
+      width: 100%;
+      margin-top: 0.75rem;
+      border-collapse: collapse;
+      font-size: 0.8rem;
+    }
+
+    .levels-table th {
+      text-align: left;
+      padding: 0.5rem;
+      background: #161b22;
+      color: #8b949e;
+      font-weight: 600;
+      border-bottom: 1px solid #30363d;
+    }
+
+    .levels-table td {
+      padding: 0.4rem 0.5rem;
+      border-bottom: 1px solid #21262d;
+    }
+
+    .level-row.buy {
+      background: rgba(35, 134, 54, 0.1);
+    }
+
+    .level-row.sell {
+      background: rgba(218, 54, 51, 0.1);
+    }
+
+    .level-row.filled {
+      opacity: 0.6;
     }
 
     .status-badge {
@@ -863,6 +955,7 @@
       </div>
       <span id="modeBadge" class="mode-badge">PORTFOLIO</span>
       <span id="statusBadge" class="status-badge status-stopped">Stopped</span>
+      <button id="logoutBtn" class="btn btn-secondary btn-small" onclick="logout()" style="display: none;">Logout</button>
     </div>
   </header>
 
@@ -1379,13 +1472,8 @@
     let isSimulationMode = true;
     let isBotRunning = false;
 
-    // Pair configurations
-    const pairConfigs = {
-      DOGEUSDT: { symbol: 'DOGEUSDT', baseAsset: 'DOGE', quoteAsset: 'USDT', gridUpper: 0.18, gridLower: 0.10, gridCount: 15, amountPerGrid: 100, gridType: 'arithmetic', allocationPercent: 50, enabled: true },
-      XLMUSDT: { symbol: 'XLMUSDT', baseAsset: 'XLM', quoteAsset: 'USDT', gridUpper: 0.32, gridLower: 0.17, gridCount: 15, amountPerGrid: 50, gridType: 'arithmetic', allocationPercent: 50, enabled: true },
-      ADAUSDT: { symbol: 'ADAUSDT', baseAsset: 'ADA', quoteAsset: 'USDT', gridUpper: 1.20, gridLower: 0.65, gridCount: 12, amountPerGrid: 15, gridType: 'arithmetic', allocationPercent: 50, enabled: true },
-      XRPUSDT: { symbol: 'XRPUSDT', baseAsset: 'XRP', quoteAsset: 'USDT', gridUpper: 3.00, gridLower: 1.60, gridCount: 12, amountPerGrid: 8, gridType: 'arithmetic', allocationPercent: 50, enabled: true },
-    };
+    // Pair configurations (loaded from API)
+    let pairConfigs = {};
 
     // ============================================================================
     // TAB MANAGEMENT
@@ -1635,8 +1723,22 @@
         if (!confirmed) return;
       }
 
-      updateSimulationModeUI(newMode);
-      addActivity(`Trading mode changed to ${newMode ? 'SIMULATION' : 'LIVE'}`, newMode ? 'info' : 'error');
+      try {
+        // Update simulation mode on backend
+        const res = await fetchWithAuth('/api/simulation', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ enabled: newMode })
+        });
+
+        if (!res.ok) throw new Error('Failed to update simulation mode');
+
+        updateSimulationModeUI(newMode);
+        addActivity(`Trading mode changed to ${newMode ? 'SIMULATION' : 'LIVE'}`, newMode ? 'info' : 'error');
+      } catch (err) {
+        console.error('Failed to toggle simulation mode:', err);
+        alert('Failed to change trading mode. Please try again.');
+      }
     }
 
     // ============================================================================
@@ -1846,7 +1948,7 @@
 
     async function loadTradeStats() {
       try {
-        const res = await fetch('/api/trades/stats');
+        const res = await fetchWithAuth('/api/trades/stats');
         const stats = await res.json();
 
         document.getElementById('statsTotalTrades').textContent = stats.totalTrades || 0;
@@ -1879,7 +1981,7 @@
 
     async function loadActiveOrders() {
       try {
-        const res = await fetch('/api/orders');
+        const res = await fetchWithAuth('/api/orders');
         const orders = await res.json();
 
         const tbody = document.getElementById('activeOrdersBody');
@@ -1949,7 +2051,7 @@
 
     async function loadRiskEvents() {
       try {
-        const res = await fetch('/api/risk/events?limit=50');
+        const res = await fetchWithAuth('/api/risk/events?limit=50');
         const events = await res.json();
 
         const container = document.getElementById('riskEventsContainer');
@@ -1986,6 +2088,17 @@
       } catch (err) {
         console.error('Failed to load risk events:', err);
       }
+
+      // Load risk limits from API (separate from events)
+      try {
+        const limitsRes = await fetch('/api/risk/limits');
+        const limits = await limitsRes.json();
+        if (limits) {
+          updateRiskLimits(limits);
+        }
+      } catch (err) {
+        console.error('Failed to load risk limits:', err);
+      }
     }
 
     function updateRiskLimits(limits) {
@@ -2003,7 +2116,7 @@
 
     async function loadRebalanceSuggestions() {
       try {
-        const res = await fetch('/api/portfolio');
+        const res = await fetchWithAuth('/api/portfolio');
         const portfolio = await res.json();
 
         const container = document.getElementById('rebalanceContainer');
@@ -2077,15 +2190,21 @@
 
     async function loadCorrelationData() {
       try {
-        const res = await fetch('/api/correlation');
+        const res = await fetchWithAuth('/api/correlation');
         const data = await res.json();
 
         if (!data || !data.matrix) {
           return;
         }
 
-        const matrix = data.matrix;
-        const pairs = data.pairs || [];
+        // API returns { matrix: { pairs: [], matrix: [][], updatedAt: Date }, summary: {...} }
+        const correlationData = data.matrix;
+        const pairs = correlationData.pairs || [];
+        const matrix = correlationData.matrix || [];
+
+        if (!matrix || matrix.length === 0 || pairs.length === 0) {
+          return;
+        }
 
         const table = document.getElementById('correlationMatrix');
 
@@ -2121,7 +2240,7 @@
       try {
         // In production, this would fetch from /api/portfolio/snapshots
         // For now, we'll use the real-time data
-        const res = await fetch('/api/status');
+        const res = await fetchWithAuth('/api/status');
         const status = await res.json();
 
         if (status.pairs && status.pairs.length > 0) {
@@ -2145,7 +2264,7 @@
 
     async function loadGridConfig() {
       try {
-        const res = await fetch('/api/grid');
+        const res = await fetchWithAuth('/api/grid');
         const grids = await res.json();
 
         const container = document.getElementById('gridContainer');
@@ -2154,6 +2273,13 @@
           container.innerHTML = '<p style="font-size: 0.85rem; color: #6e7681;">Start the bot to see grid levels</p>';
           return;
         }
+
+        // Save open/closed state of details elements before updating
+        const openDetails = new Set();
+        container.querySelectorAll('details[open]').forEach(details => {
+          const symbol = details.closest('.grid-pair')?.querySelector('.grid-pair-symbol')?.textContent;
+          if (symbol) openDetails.add(symbol);
+        });
 
         const statusRes = await fetch('/api/status');
         const status = await statusRes.json();
@@ -2184,12 +2310,49 @@
           const gridLevelsHtml = levels.map((level) => {
             const levelPosition = ((upperPrice - level.price) / priceRange) * 100;
             const statusClass = level.buyOrderId ? 'buy' : level.sellOrderId ? 'sell' : level.status === 'filled' ? 'filled' : '';
-            return `<div class="grid-level ${statusClass}" style="top: ${levelPosition}%;"></div>`;
+            const priceLabel = `$${level.price.toFixed(4)}`;
+            return `
+              <div class="grid-level ${statusClass}" style="top: ${levelPosition}%;">
+                <span class="grid-level-price">${priceLabel}</span>
+              </div>
+            `;
           }).join('');
 
           const currentPriceHtml = currentPrice > 0
-            ? `<div class="grid-current-price" style="top: ${pricePosition}%;" data-price="$${currentPrice.toFixed(4)}"></div>`
+            ? `<div class="grid-current-price" style="top: ${pricePosition}%;">
+                <span class="grid-current-price-label">Current: $${currentPrice.toFixed(4)}</span>
+              </div>`
             : '';
+
+          // Detailed table view
+          const levelsTableHtml = levels.map(level => {
+            let statusText = 'Empty';
+            let statusClass = 'empty';
+            if (level.buyOrderId) {
+              statusText = '🟢 Buy Order';
+              statusClass = 'buy';
+            } else if (level.sellOrderId) {
+              statusText = '🔴 Sell Order';
+              statusClass = 'sell';
+            } else if (level.status === 'bought') {
+              statusText = '✅ Bought';
+              statusClass = 'filled';
+            } else if (level.status === 'sold') {
+              statusText = '💰 Sold';
+              statusClass = 'filled';
+            }
+
+            const isCurrent = currentPrice > 0 && Math.abs(level.price - currentPrice) < gridSpacing / 2;
+            const currentMarker = isCurrent ? ' 👉' : '';
+
+            return `
+              <tr class="level-row ${statusClass}">
+                <td>#${level.level}</td>
+                <td>$${level.price.toFixed(4)}${currentMarker}</td>
+                <td>${statusText}</td>
+              </tr>
+            `;
+          }).join('');
 
           return `
             <div class="grid-pair">
@@ -2204,9 +2367,34 @@
                 <div><div class="grid-stat-value negative">${sellOrders}</div><div class="grid-stat-label">Sell Orders</div></div>
                 <div><div class="grid-stat-value">$${gridSpacing.toFixed(4)}</div><div class="grid-stat-label">Spacing</div></div>
               </div>
+              <details class="grid-details" data-symbol="${symbol.replace('USDT', '/USDT')}">
+                <summary>📊 View Detailed Levels</summary>
+                <table class="levels-table">
+                  <thead>
+                    <tr>
+                      <th>Level</th>
+                      <th>Price</th>
+                      <th>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    ${levelsTableHtml}
+                  </tbody>
+                </table>
+              </details>
             </div>
           `;
         }).join('');
+
+        // Restore open state of details elements
+        setTimeout(() => {
+          container.querySelectorAll('.grid-details').forEach(details => {
+            const symbol = details.dataset.symbol;
+            if (openDetails.has(symbol)) {
+              details.setAttribute('open', '');
+            }
+          });
+        }, 0);
 
       } catch (err) {
         console.error('Failed to load grid config:', err);
@@ -2219,7 +2407,7 @@
 
     async function loadBalances() {
       try {
-        const res = await fetch('/api/balances');
+        const res = await fetchWithAuth('/api/balances');
         const balances = await res.json();
         const container = document.getElementById('balances');
 
@@ -2314,7 +2502,7 @@
       try {
         addActivity(`Starting portfolio with ${selectedPairs.join(', ')}...`);
 
-        const res = await fetch('/api/portfolio/start', {
+        const res = await fetchWithAuth('/api/portfolio/start', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ pairs, totalCapital: capital, riskStrategy: strategy })
@@ -2338,7 +2526,7 @@
     async function startSingleBot() {
       try {
         addActivity('Starting single pair bot...');
-        const res = await fetch('/api/start', { method: 'POST' });
+        const res = await fetchWithAuth('/api/start', { method: 'POST' });
         const data = await res.json();
         if (!res.ok) {
           addActivity(data.error || 'Failed to start', 'error');
@@ -2355,7 +2543,7 @@
     async function stopBot() {
       try {
         addActivity('Stopping bot...');
-        const res = await fetch('/api/stop', { method: 'POST' });
+        const res = await fetchWithAuth('/api/stop', { method: 'POST' });
         const data = await res.json();
         if (!res.ok) {
           addActivity(data.error || 'Failed to stop', 'error');
@@ -2382,7 +2570,7 @@
 
     async function exportTradeHistory() {
       try {
-        const res = await fetch('/api/trades/history?limit=1000');
+        const res = await fetchWithAuth('/api/trades/history?limit=1000');
         const trades = await res.json();
 
         if (!trades || trades.length === 0) {
@@ -2490,10 +2678,52 @@
     }
 
     // ============================================================================
+    // PAIR CONFIGS
+    // ============================================================================
+
+    async function loadPairConfigs() {
+      try {
+        const res = await fetchWithAuth('/api/recommended-pairs');
+        const data = await res.json();
+
+        // Convert recommended pairs array to object keyed by symbol
+        pairConfigs = {};
+        if (data.recommended) {
+          data.recommended.forEach(pair => {
+            pairConfigs[pair.symbol] = pair;
+          });
+        }
+
+        // Also add alternatives
+        if (data.alternatives) {
+          Object.values(data.alternatives).forEach(pairList => {
+            pairList.forEach(pair => {
+              if (!pairConfigs[pair.symbol]) {
+                pairConfigs[pair.symbol] = pair;
+              }
+            });
+          });
+        }
+
+        console.log('Loaded pair configs:', Object.keys(pairConfigs));
+      } catch (err) {
+        console.error('Failed to load pair configs:', err);
+        // Fallback to minimal config
+        pairConfigs = {
+          DOGEUSDT: { symbol: 'DOGEUSDT', baseAsset: 'DOGE', quoteAsset: 'USDT', gridUpper: 0.18, gridLower: 0.10, gridCount: 7, amountPerGrid: 100, gridType: 'arithmetic', allocationPercent: 50, enabled: true },
+          XLMUSDT: { symbol: 'XLMUSDT', baseAsset: 'XLM', quoteAsset: 'USDT', gridUpper: 0.32, gridLower: 0.17, gridCount: 7, amountPerGrid: 50, gridType: 'arithmetic', allocationPercent: 50, enabled: true },
+        };
+      }
+    }
+
+    // ============================================================================
     // INITIALIZATION
     // ============================================================================
 
-    document.addEventListener('DOMContentLoaded', () => {
+    document.addEventListener('DOMContentLoaded', async () => {
+      // Load pair configs first (other functions depend on it)
+      await loadPairConfigs();
+
       initCharts();
       loadBalances();
       loadGridConfig();
@@ -2535,6 +2765,16 @@
         .then(res => res.json())
         .then(config => {
           updateSimulationModeUI(config.simulationMode);
+
+          // Update UI with config values
+          if (config.totalCapital) {
+            document.getElementById('capitalInput').value = config.totalCapital;
+          }
+          if (config.riskStrategy) {
+            document.getElementById('strategySelect').value = config.riskStrategy;
+            document.getElementById('riskStrategy').textContent =
+              config.riskStrategy.charAt(0).toUpperCase() + config.riskStrategy.slice(1);
+          }
         })
         .catch(console.error);
     });
