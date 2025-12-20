@@ -11,21 +11,23 @@ services:
       - "8000:8000"
     volumes:
       - trading-data:/app/data
-      - ./logs:/app/logs
     environment:
       - BINANCE_API_KEY=${BINANCE_API_KEY}
       - BINANCE_API_SECRET=${BINANCE_API_SECRET}
       - BINANCE_TESTNET=${BINANCE_TESTNET:-true}
       - TRADING_PAIR=${TRADING_PAIR:-BTCUSDT}
+      - BASE_ASSET=${BASE_ASSET:-BTC}
+      - QUOTE_ASSET=${QUOTE_ASSET:-USDT}
       - GRID_UPPER=${GRID_UPPER:-45000}
       - GRID_LOWER=${GRID_LOWER:-40000}
       - GRID_COUNT=${GRID_COUNT:-10}
       - GRID_AMOUNT=${GRID_AMOUNT:-0.001}
+      - GRID_TYPE=${GRID_TYPE:-arithmetic}
       - SIMULATION_MODE=${SIMULATION_MODE:-true}
-      - LOG_LEVEL=${LOG_LEVEL:-INFO}
-      - DATABASE_URL=sqlite+aiosqlite:///./data/trading.db
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+      - SERVER_PORT=8000
     healthcheck:
-      test: ["CMD", "python", "-c", "import httpx; httpx.get('http://localhost:8000/api/status')"]
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8000/api/health"]
       interval: 30s
       timeout: 10s
       retries: 3

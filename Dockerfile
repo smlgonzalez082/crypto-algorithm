@@ -1,49 +1,49 @@
 # Multi-stage build for smaller image
-FROM python:3.11-slim as builder
+FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-# Install build dependencies
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    gcc \
-    && rm -rf /var/lib/apt/lists/*
+# Install dependencies
+COPY package*.json ./
+RUN npm ci
 
-# Install Python dependencies
-COPY requirements.txt .
-RUN pip wheel --no-cache-dir --no-deps --wheel-dir /app/wheels -r requirements.txt
+# Copy source and build
+COPY tsconfig.json ./
+COPY src/ ./src/
+RUN npm run build
 
 # Production stage
-FROM python:3.11-slim
+FROM node:20-alpine
 
 WORKDIR /app
 
 # Create non-root user
-RUN useradd --create-home --shell /bin/bash appuser
+RUN addgroup -g 1001 -S nodejs && \
+    adduser -S nodejs -u 1001
 
-# Copy wheels from builder
-COPY --from=builder /app/wheels /wheels
-RUN pip install --no-cache /wheels/*
+# Copy package files and install production dependencies
+COPY package*.json ./
+RUN npm ci --only=production && npm cache clean --force
 
-# Copy application code
-COPY src/ ./src/
+# Copy built application
+COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/src/web/static ./dist/web/static
 
 # Create data directory
-RUN mkdir -p /app/data && chown -R appuser:appuser /app
+RUN mkdir -p /app/data && chown -R nodejs:nodejs /app
 
 # Switch to non-root user
-USER appuser
+USER nodejs
 
 # Environment variables
-ENV PYTHONUNBUFFERED=1
-ENV PYTHONDONTWRITEBYTECODE=1
-ENV DATABASE_URL=sqlite+aiosqlite:///./data/trading.db
+ENV NODE_ENV=production
 
 # Expose port
 EXPOSE 8000
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD python -c "import httpx; httpx.get('http://localhost:8000/api/status')" || exit 1
+    CMD wget --no-verbose --tries=1 --spider http://localhost:8000/api/health || exit 1
 
 # Run the application
-CMD ["python", "-m", "src.main"]
+CMD ["node", "dist/index.js"]
