@@ -140,7 +140,7 @@ describe('Authentication Middleware', () => {
       };
 
       const { CognitoJwtVerifier } = await import('aws-jwt-verify');
-      const mockVerify = (CognitoJwtVerifier.create as jest.Mock)().verify as any;
+      const mockVerifier: any = (CognitoJwtVerifier.create as jest.Mock)(); const mockVerify = mockVerifier.verify as any;
       mockVerify.mockRejectedValue(new Error('Token expired'));
 
       await authenticateToken(
@@ -163,7 +163,7 @@ describe('Authentication Middleware', () => {
       };
 
       const { CognitoJwtVerifier } = await import('aws-jwt-verify');
-      const mockVerify = (CognitoJwtVerifier.create as jest.Mock)().verify as any;
+      const mockVerifier: any = (CognitoJwtVerifier.create as jest.Mock)(); const mockVerify = mockVerifier.verify as any;
       mockVerify.mockRejectedValue(new Error('Invalid token signature'));
 
       await authenticateToken(
@@ -263,7 +263,7 @@ describe('Authentication Middleware', () => {
       };
 
       const { CognitoJwtVerifier } = await import('aws-jwt-verify');
-      const mockVerify = (CognitoJwtVerifier.create as jest.Mock)().verify as any;
+      const mockVerifier: any = (CognitoJwtVerifier.create as jest.Mock)(); const mockVerify = mockVerifier.verify as any;
       mockVerify.mockResolvedValue({
         sub: 'user-123',
         email: 'user@example.com',

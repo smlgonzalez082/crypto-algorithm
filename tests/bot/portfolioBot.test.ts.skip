@@ -5,6 +5,20 @@ import type { PairConfig } from '../../src/types/portfolio.js';
 
 // Mock dependencies
 jest.mock('../../src/exchange/binance.js');
+jest.mock('../../src/exchange/binanceStreams.js');
+jest.mock('../../src/bot/portfolioRisk.js');
+jest.mock('../../src/analysis/correlation.js', () => ({
+  correlationAnalyzer: {
+    updatePriceHistory: jest.fn(),
+    getCorrelation: jest.fn(),
+  },
+}));
+jest.mock('../../src/models/database.js', () => ({
+  tradingDb: {
+    savePortfolioSnapshot: jest.fn(),
+    saveGridState: jest.fn(),
+  },
+}));
 jest.mock('../../src/utils/logger.js', () => ({
   createLogger: () => ({
     info: jest.fn(),
@@ -12,6 +26,11 @@ jest.mock('../../src/utils/logger.js', () => ({
     error: jest.fn(),
     debug: jest.fn(),
   }),
+}));
+jest.mock('../../src/utils/config.js', () => ({
+  config: {
+    simulationMode: true,
+  },
 }));
 
 describe('PortfolioGridBot', () => {

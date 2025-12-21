@@ -27,14 +27,14 @@ describe('GridBot', () => {
     mockRiskManager = new RiskManager() as jest.Mocked<RiskManager>;
 
     // Setup mock implementations
-    mockClient.connect = jest.fn().mockResolvedValue(undefined) as any;
-    mockClient.disconnect = jest.fn().mockReturnValue(undefined) as any;
-    mockClient.getCurrentPrice = jest.fn().mockResolvedValue(0.14) as any;
-    mockClient.getBalance = jest.fn().mockResolvedValue({
+    (mockClient as any).connect = jest.fn().mockResolvedValue(undefined);
+    (mockClient as any).disconnect = jest.fn().mockReturnValue(undefined);
+    (mockClient as any).getCurrentPrice = jest.fn().mockResolvedValue(0.14);
+    (mockClient as any).getBalance = jest.fn().mockResolvedValue({
       free: 1000,
       locked: 0,
       total: 1000
-    }) as any;
+    });
     (mockClient as any).placeOrder = jest.fn().mockResolvedValue({
       orderId: '123',
       tradingPair: 'DOGEUSDT',
@@ -48,14 +48,14 @@ describe('GridBot', () => {
       createdAt: new Date(),
     } as Order);
     (mockClient as any).cancelAllOrders = jest.fn().mockResolvedValue(undefined);
-    mockClient.startPriceStream = jest.fn().mockReturnValue(undefined) as any;
-    mockClient.startUserStream = jest.fn().mockReturnValue(undefined) as any;
-    mockClient.onPriceUpdate = jest.fn() as any;
-    mockClient.onOrderUpdate = jest.fn() as any;
+    (mockClient as any).startPriceStream = jest.fn().mockReturnValue(undefined);
+    (mockClient as any).startUserStream = jest.fn().mockReturnValue(undefined);
+    (mockClient as any).onPriceUpdate = jest.fn();
+    (mockClient as any).onOrderUpdate = jest.fn();
 
-    mockRiskManager.updateBalance = jest.fn() as any;
-    mockRiskManager.canPlaceOrder = jest.fn().mockReturnValue({ allowed: true, reason: '' }) as any;
-    mockRiskManager.recordTradePnl = jest.fn() as any;
+    (mockRiskManager as any).updateBalance = jest.fn();
+    (mockRiskManager as any).canPlaceOrder = jest.fn().mockReturnValue({ allowed: true, reason: '' });
+    (mockRiskManager as any).recordTradePnl = jest.fn();
 
     // Create bot instance
     bot = new GridBot(mockClient, mockRiskManager);
@@ -230,7 +230,7 @@ describe('GridBot', () => {
     });
 
     it('should respect risk manager limits', async () => {
-      mockRiskManager.canPlaceOrder.mockReturnValue({ allowed: false, reason: 'Risk limit exceeded' });
+      (mockRiskManager as any).canPlaceOrder.mockReturnValue({ allowed: false, reason: 'Risk limit exceeded' });
 
       await bot.start();
 
