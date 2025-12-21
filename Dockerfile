@@ -1,10 +1,12 @@
-# Multi-stage build for smaller image
+# Build stage
 FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-# Install dependencies
+# Copy package files
 COPY package*.json ./
+
+# Install ALL dependencies for building
 RUN npm ci
 
 # Copy source and build
@@ -12,13 +14,8 @@ COPY tsconfig.json ./
 COPY src/ ./src/
 RUN npm run build
 
-# Install production dependencies in a separate stage
-FROM node:20-alpine AS deps
-
-WORKDIR /app
-
-COPY package*.json ./
-RUN npm ci --omit=dev && npm cache clean --force
+# Remove dev dependencies after build
+RUN npm prune --omit=dev
 
 # Production stage
 FROM node:20-alpine
@@ -32,10 +29,8 @@ RUN addgroup -g 1001 -S nodejs && \
 # Copy package files
 COPY package*.json ./
 
-# Copy production dependencies from deps stage
-COPY --from=deps /app/node_modules ./node_modules
-
-# Copy built application
+# Copy production node_modules and built app from builder
+COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/src/web/static ./dist/web/static
 
