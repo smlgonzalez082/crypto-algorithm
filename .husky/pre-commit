@@ -10,3 +10,6 @@ npm run lint
 
 # Run full typecheck (fast, catches global type errors)
 npm run typecheck
+
+# TODO: Add tests back once all test files are updated
+# npm run test:unit
