@@ -49,19 +49,18 @@ describe('PortfolioGridBot', () => {
     mockClient = new BinanceClient() as jest.Mocked<BinanceClient>;
 
     // Setup mock implementations
-    mockClient.connect = jest.fn().mockResolvedValue(undefined);
-    mockClient.disconnect = jest.fn().mockResolvedValue(undefined);
-    mockClient.getBalance = jest.fn().mockResolvedValue({
-      free: 2000,
-      locked: 0,
-      total: 2000,
-    });
+    mockClient.connect = jest.fn() as any;
+    mockClient.disconnect = jest.fn() as any;
+    mockClient.getBalance = jest.fn() as any;
 
-    bot = new PortfolioGridBot(
-      mockClient,
-      2000, // totalCapital
-      'moderate' // riskStrategy
-    );
+    bot = new PortfolioGridBot(mockClient, {
+      pairs: [],
+      totalCapital: 2000,
+      riskStrategy: 'moderate',
+      rebalanceThreshold: 10,
+      rebalanceInterval: 60000,
+      priceHistoryDays: 30,
+    });
   });
 
   afterEach(() => {
@@ -73,16 +72,31 @@ describe('PortfolioGridBot', () => {
       expect(bot).toBeInstanceOf(PortfolioGridBot);
       const status = bot.getStatus();
       expect(status.status).toBe('stopped');
-      expect(status.totalCapital).toBe(2000);
-      expect(status.riskStrategy).toBe('moderate');
+      expect(status.riskStatus.strategy).toBe('moderate');
     });
 
     it('should accept different risk strategies', () => {
-      const conservativeBot = new PortfolioGridBot(mockClient, 2000, 'conservative');
-      const aggressiveBot = new PortfolioGridBot(mockClient, 2000, 'aggressive');
+      const conservativeBot = new PortfolioGridBot(mockClient, {
+        pairs: [],
+        totalCapital: 2000,
+        riskStrategy: 'conservative',
+        rebalanceThreshold: 10,
+        rebalanceInterval: 60000,
+        priceHistoryDays: 30,
+      });
+      const aggressiveBot = new PortfolioGridBot(mockClient, {
+        pairs: [],
+        totalCapital: 2000,
+        riskStrategy: 'aggressive',
+        rebalanceThreshold: 10,
+        rebalanceInterval: 60000,
+        priceHistoryDays: 30,
+      });
 
-      expect(conservativeBot.getStatus().riskStrategy).toBe('conservative');
-      expect(aggressiveBot.getStatus().riskStrategy).toBe('aggressive');
+      const conservativeStatus = conservativeBot.getStatus();
+      const aggressiveStatus = aggressiveBot.getStatus();
+      expect(conservativeStatus.riskStatus.strategy).toBe('conservative');
+      expect(aggressiveStatus.riskStatus.strategy).toBe('aggressive');
     });
   });
 
@@ -183,12 +197,10 @@ describe('PortfolioGridBot', () => {
       const status = bot.getStatus();
 
       expect(status).toHaveProperty('status');
-      expect(status).toHaveProperty('totalCapital');
-      expect(status).toHaveProperty('riskStrategy');
-      expect(status).toHaveProperty('portfolioValue');
+      expect(status).toHaveProperty('pairs');
       expect(status).toHaveProperty('totalPnl');
-      expect(status).toHaveProperty('activePairs');
-      expect(status.activePairs.length).toBe(2);
+      expect(status).toHaveProperty('riskStatus');
+      expect(status.pairs.length).toBe(2);
     });
 
     it('should calculate portfolio metrics correctly', async () => {
@@ -196,8 +208,8 @@ describe('PortfolioGridBot', () => {
 
       const status = bot.getStatus();
 
-      expect(status.portfolioValue).toBeGreaterThanOrEqual(0);
       expect(status.totalPnl).toBeGreaterThanOrEqual(0);
+      expect(status.totalTrades).toBeGreaterThanOrEqual(0);
     });
   });
 
@@ -208,10 +220,8 @@ describe('PortfolioGridBot', () => {
       const details = bot.getPairDetails('DOGEUSDT');
 
       expect(details).not.toBeNull();
-      expect(details?.symbol).toBe('DOGEUSDT');
-      expect(details).toHaveProperty('allocation');
-      expect(details).toHaveProperty('currentValue');
-      expect(details).toHaveProperty('pnl');
+      expect(details).toHaveProperty('config');
+      expect(details).toHaveProperty('status');
     });
 
     it('should return null for non-existent pair', () => {
@@ -221,54 +231,38 @@ describe('PortfolioGridBot', () => {
     });
   });
 
-  describe('updateStrategy()', () => {
-    it('should update risk strategy', async () => {
-      const result = await bot.updateStrategy('aggressive');
+  describe('updateRiskStrategy()', () => {
+    it('should update risk strategy', () => {
+      bot.updateRiskStrategy('aggressive');
 
-      expect(result).toBe(true);
       const status = bot.getStatus();
-      expect(status.riskStrategy).toBe('aggressive');
+      expect(status.riskStatus.strategy).toBe('aggressive');
     });
 
-    it('should not update strategy while running', async () => {
-      await bot.addPair(mockPairConfigs[0]);
-      await bot.start();
+    it('should update to conservative', () => {
+      bot.updateRiskStrategy('conservative');
 
-      const result = await bot.updateStrategy('conservative');
-
-      expect(result).toBe(false);
       const status = bot.getStatus();
-      expect(status.riskStrategy).toBe('moderate');
-
-      await bot.stop();
+      expect(status.riskStatus.strategy).toBe('conservative');
     });
   });
 
   describe('Portfolio Allocation', () => {
-    it('should calculate allocations correctly', async () => {
-      await bot.addPair(mockPairConfigs[0]); // 50%
-      await bot.addPair(mockPairConfigs[1]); // 50%
+    it('should track multiple pairs', async () => {
+      await bot.addPair(mockPairConfigs[0]);
+      await bot.addPair(mockPairConfigs[1]);
 
       const status = bot.getStatus();
-      const totalAllocation = status.activePairs.reduce(
-        (sum, pair) => sum + pair.allocation,
-        0
-      );
-
-      expect(totalAllocation).toBeCloseTo(100, 0);
+      expect(status.pairs.length).toBe(2);
     });
 
     it('should respect max exposure limits based on strategy', async () => {
       await bot.addPair(mockPairConfigs[0]);
-      await bot.start();
 
-      const status = bot.getStatus();
       const limits = bot.getRiskLimits();
 
       // Moderate strategy: 75% max exposure
-      expect(limits.maxTotalExposure).toBe(0.75);
-
-      await bot.stop();
+      expect(limits.maxTotalExposure).toBe(75);
     });
   });
 
@@ -302,9 +296,30 @@ describe('PortfolioGridBot', () => {
     });
 
     it('should have different limits for different strategies', () => {
-      const conservativeBot = new PortfolioGridBot(mockClient, 2000, 'conservative');
-      const moderateBot = new PortfolioGridBot(mockClient, 2000, 'moderate');
-      const aggressiveBot = new PortfolioGridBot(mockClient, 2000, 'aggressive');
+      const conservativeBot = new PortfolioGridBot(mockClient, {
+        pairs: [],
+        totalCapital: 2000,
+        riskStrategy: 'conservative',
+        rebalanceThreshold: 10,
+        rebalanceInterval: 60000,
+        priceHistoryDays: 30,
+      });
+      const moderateBot = new PortfolioGridBot(mockClient, {
+        pairs: [],
+        totalCapital: 2000,
+        riskStrategy: 'moderate',
+        rebalanceThreshold: 10,
+        rebalanceInterval: 60000,
+        priceHistoryDays: 30,
+      });
+      const aggressiveBot = new PortfolioGridBot(mockClient, {
+        pairs: [],
+        totalCapital: 2000,
+        riskStrategy: 'aggressive',
+        rebalanceThreshold: 10,
+        rebalanceInterval: 60000,
+        priceHistoryDays: 30,
+      });
 
       const conservativeLimits = conservativeBot.getRiskLimits();
       const moderateLimits = moderateBot.getRiskLimits();

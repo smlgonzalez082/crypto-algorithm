@@ -1,6 +1,5 @@
 import { jest } from '@jest/globals';
 import { PortfolioRiskManager } from '../../src/bot/portfolioRisk.js';
-import type { RiskStrategy, Trade } from '../../src/types/portfolio.js';
 
 jest.mock('../../src/utils/logger.js', () => ({
   createLogger: () => ({
@@ -13,483 +12,298 @@ jest.mock('../../src/utils/logger.js', () => ({
 
 describe('PortfolioRiskManager', () => {
   let riskManager: PortfolioRiskManager;
-  const totalCapital = 2000;
 
   describe('Conservative Strategy', () => {
     beforeEach(() => {
-      riskManager = new PortfolioRiskManager(totalCapital, 'conservative');
+      riskManager = new PortfolioRiskManager('conservative');
     });
 
     it('should initialize with conservative limits', () => {
       const limits = riskManager.getLimits();
 
-      expect(limits.maxTotalExposure).toBe(0.6); // 60%
-      expect(limits.maxDailyLoss).toBe(0.025); // 2.5%
-      expect(limits.maxDrawdown).toBe(0.1); // 10%
-      expect(limits.consecutiveLossLimit).toBe(3);
-    });
-
-    it('should respect conservative exposure limits', () => {
-      const allocation = riskManager.calculatePairAllocation(
-        'DOGEUSDT',
-        50, // 50% suggested
-        0.5, // 50% correlation
-        0.02 // 2% volatility
-      );
-
-      // Conservative should reduce allocation
-      expect(allocation).toBeLessThan(50);
-      expect(allocation).toBeGreaterThan(0);
+      expect(limits.maxTotalExposure).toBe(60); // 60%
+      expect(limits.maxDailyLossPercent).toBe(2.5); // 2.5%
+      expect(limits.maxDrawdownPercent).toBe(10); // 10%
+      expect(limits.pauseOnConsecutiveLosses).toBe(3);
     });
 
     it('should block trades after 3 consecutive losses', () => {
+      riskManager.updatePortfolioValue(2000);
+
       // Record 3 losing trades
       for (let i = 0; i < 3; i++) {
-        const trade: Trade = {
-          id: `trade-${i}`,
-          symbol: 'DOGEUSDT',
-          side: 'BUY',
-          price: 0.14,
-          quantity: 100,
-          timestamp: new Date(),
-          pnl: -10,
-          fee: 0.1,
-        };
-        riskManager.recordTrade(trade);
+        riskManager.recordTrade('DOGEUSDT', -10);
       }
 
-      expect(riskManager.isCircuitBreakerTripped()).toBe(true);
-      expect(riskManager.canTrade('DOGEUSDT')).toBe(false);
+      const status = riskManager.getStatus();
+      expect(status.isPaused).toBe(true);
     });
   });
 
   describe('Moderate Strategy', () => {
     beforeEach(() => {
-      riskManager = new PortfolioRiskManager(totalCapital, 'moderate');
+      riskManager = new PortfolioRiskManager('moderate');
     });
 
     it('should initialize with moderate limits', () => {
       const limits = riskManager.getLimits();
 
-      expect(limits.maxTotalExposure).toBe(0.75); // 75%
-      expect(limits.maxDailyLoss).toBe(0.05); // 5%
-      expect(limits.maxDrawdown).toBe(0.15); // 15%
-      expect(limits.consecutiveLossLimit).toBe(5);
-    });
-
-    it('should allow moderate exposure', () => {
-      const allocation = riskManager.calculatePairAllocation(
-        'DOGEUSDT',
-        50,
-        0.5,
-        0.02
-      );
-
-      expect(allocation).toBeGreaterThan(0);
-      expect(allocation).toBeLessThanOrEqual(50);
+      expect(limits.maxTotalExposure).toBe(75); // 75%
+      expect(limits.maxDailyLossPercent).toBe(5); // 5%
+      expect(limits.maxDrawdownPercent).toBe(15); // 15%
+      expect(limits.pauseOnConsecutiveLosses).toBe(5);
     });
 
     it('should block trades after 5 consecutive losses', () => {
+      riskManager.updatePortfolioValue(2000);
+
       for (let i = 0; i < 5; i++) {
-        const trade: Trade = {
-          id: `trade-${i}`,
-          symbol: 'DOGEUSDT',
-          side: 'BUY',
-          price: 0.14,
-          quantity: 100,
-          timestamp: new Date(),
-          pnl: -10,
-          fee: 0.1,
-        };
-        riskManager.recordTrade(trade);
+        riskManager.recordTrade('DOGEUSDT', -10);
       }
 
-      expect(riskManager.isCircuitBreakerTripped()).toBe(true);
+      const status = riskManager.getStatus();
+      expect(status.isPaused).toBe(true);
     });
   });
 
   describe('Aggressive Strategy', () => {
     beforeEach(() => {
-      riskManager = new PortfolioRiskManager(totalCapital, 'aggressive');
+      riskManager = new PortfolioRiskManager('aggressive');
     });
 
     it('should initialize with aggressive limits', () => {
       const limits = riskManager.getLimits();
 
-      expect(limits.maxTotalExposure).toBe(0.9); // 90%
-      expect(limits.maxDailyLoss).toBe(0.1); // 10%
-      expect(limits.maxDrawdown).toBe(0.25); // 25%
-      expect(limits.consecutiveLossLimit).toBe(7);
-    });
-
-    it('should allow higher exposure', () => {
-      const allocation = riskManager.calculatePairAllocation(
-        'DOGEUSDT',
-        50,
-        0.3, // lower correlation
-        0.03 // higher volatility
-      );
-
-      expect(allocation).toBeGreaterThan(0);
+      expect(limits.maxTotalExposure).toBe(90); // 90%
+      expect(limits.maxDailyLossPercent).toBe(10); // 10%
+      expect(limits.maxDrawdownPercent).toBe(25); // 25%
+      expect(limits.pauseOnConsecutiveLosses).toBe(7);
     });
 
     it('should be more tolerant of losses', () => {
+      riskManager.updatePortfolioValue(2000);
+
       // Record 5 losing trades
       for (let i = 0; i < 5; i++) {
-        const trade: Trade = {
-          id: `trade-${i}`,
-          symbol: 'DOGEUSDT',
-          side: 'BUY',
-          price: 0.14,
-          quantity: 100,
-          timestamp: new Date(),
-          pnl: -10,
-          fee: 0.1,
-        };
-        riskManager.recordTrade(trade);
+        riskManager.recordTrade('DOGEUSDT', -10);
       }
 
       // Should still allow trading (limit is 7)
-      expect(riskManager.isCircuitBreakerTripped()).toBe(false);
-      expect(riskManager.canTrade('DOGEUSDT')).toBe(true);
-    });
-  });
-
-  describe('calculatePairAllocation()', () => {
-    beforeEach(() => {
-      riskManager = new PortfolioRiskManager(totalCapital, 'moderate');
-    });
-
-    it('should reduce allocation for high correlation', () => {
-      const lowCorrAllocation = riskManager.calculatePairAllocation(
-        'DOGEUSDT',
-        50,
-        0.2, // low correlation
-        0.02
-      );
-
-      const highCorrAllocation = riskManager.calculatePairAllocation(
-        'XLMUSDT',
-        50,
-        0.8, // high correlation
-        0.02
-      );
-
-      expect(highCorrAllocation).toBeLessThan(lowCorrAllocation);
-    });
-
-    it('should reduce allocation for high volatility', () => {
-      const lowVolAllocation = riskManager.calculatePairAllocation(
-        'DOGEUSDT',
-        50,
-        0.5,
-        0.01 // low volatility
-      );
-
-      const highVolAllocation = riskManager.calculatePairAllocation(
-        'XLMUSDT',
-        50,
-        0.5,
-        0.05 // high volatility
-      );
-
-      expect(highVolAllocation).toBeLessThan(lowVolAllocation);
-    });
-
-    it('should never exceed suggested allocation', () => {
-      const allocation = riskManager.calculatePairAllocation(
-        'DOGEUSDT',
-        30,
-        0.1,
-        0.01
-      );
-
-      expect(allocation).toBeLessThanOrEqual(30);
-    });
-
-    it('should return 0 for negative suggested allocation', () => {
-      const allocation = riskManager.calculatePairAllocation(
-        'DOGEUSDT',
-        -10,
-        0.5,
-        0.02
-      );
-
-      expect(allocation).toBe(0);
+      const status = riskManager.getStatus();
+      expect(status.isPaused).toBe(false);
     });
   });
 
   describe('recordTrade()', () => {
     beforeEach(() => {
-      riskManager = new PortfolioRiskManager(totalCapital, 'moderate');
+      riskManager = new PortfolioRiskManager('moderate');
+      riskManager.updatePortfolioValue(2000);
     });
 
     it('should record profitable trade', () => {
-      const trade: Trade = {
-        id: 'trade-1',
-        symbol: 'DOGEUSDT',
-        side: 'SELL',
-        price: 0.15,
-        quantity: 100,
-        timestamp: new Date(),
-        pnl: 10,
-        fee: 0.1,
-      };
+      riskManager.recordTrade('DOGEUSDT', 10);
 
-      riskManager.recordTrade(trade);
-      const stats = riskManager.getPortfolioStats();
-
-      expect(stats.totalPnl).toBeGreaterThan(0);
-      expect(stats.totalTrades).toBe(1);
+      const status = riskManager.getStatus();
+      expect(status.dailyPnl).toBe(10);
     });
 
     it('should track consecutive losses', () => {
       // Record 3 losing trades
       for (let i = 0; i < 3; i++) {
-        const trade: Trade = {
-          id: `trade-${i}`,
-          symbol: 'DOGEUSDT',
-          side: 'BUY',
-          price: 0.14,
-          quantity: 100,
-          timestamp: new Date(),
-          pnl: -5,
-          fee: 0.1,
-        };
-        riskManager.recordTrade(trade);
+        riskManager.recordTrade('DOGEUSDT', -5);
       }
 
-      const events = riskManager.getRiskEvents();
-      const consecutiveLossEvent = events.find(
-        e => e.type === 'consecutive_loss_limit'
-      );
-
-      expect(consecutiveLossEvent).toBeDefined();
+      const status = riskManager.getStatus();
+      expect(status.consecutiveLosses).toBe(3);
     });
 
     it('should reset consecutive losses on win', () => {
       // Record 2 losses
       for (let i = 0; i < 2; i++) {
-        const trade: Trade = {
-          id: `trade-${i}`,
-          symbol: 'DOGEUSDT',
-          side: 'BUY',
-          price: 0.14,
-          quantity: 100,
-          timestamp: new Date(),
-          pnl: -5,
-          fee: 0.1,
-        };
-        riskManager.recordTrade(trade);
+        riskManager.recordTrade('DOGEUSDT', -5);
       }
 
       // Record a win
-      const winTrade: Trade = {
-        id: 'trade-win',
-        symbol: 'DOGEUSDT',
-        side: 'SELL',
-        price: 0.15,
-        quantity: 100,
-        timestamp: new Date(),
-        pnl: 10,
-        fee: 0.1,
-      };
-      riskManager.recordTrade(winTrade);
+      riskManager.recordTrade('DOGEUSDT', 10);
 
-      // Should not trip circuit breaker
-      expect(riskManager.isCircuitBreakerTripped()).toBe(false);
+      const status = riskManager.getStatus();
+      expect(status.consecutiveLosses).toBe(0);
     });
   });
 
-  describe('checkDailyLossLimit()', () => {
+  describe('canPlaceOrder()', () => {
     beforeEach(() => {
-      riskManager = new PortfolioRiskManager(totalCapital, 'moderate');
-    });
-
-    it('should trip on exceeding daily loss limit', () => {
-      // Record large losing trade (> 5% of capital)
-      const trade: Trade = {
-        id: 'trade-1',
-        symbol: 'DOGEUSDT',
-        side: 'BUY',
-        price: 0.14,
-        quantity: 1000,
-        timestamp: new Date(),
-        pnl: -150, // 7.5% of 2000
-        fee: 1,
-      };
-
-      riskManager.recordTrade(trade);
-
-      expect(riskManager.isCircuitBreakerTripped()).toBe(true);
-      const events = riskManager.getRiskEvents();
-      const dailyLossEvent = events.find(e => e.type === 'daily_loss_limit');
-      expect(dailyLossEvent).toBeDefined();
-    });
-  });
-
-  describe('checkDrawdownLimit()', () => {
-    beforeEach(() => {
-      riskManager = new PortfolioRiskManager(totalCapital, 'moderate');
-    });
-
-    it('should calculate drawdown correctly', () => {
-      // Simulate series of losing trades
-      for (let i = 0; i < 10; i++) {
-        const trade: Trade = {
-          id: `trade-${i}`,
-          symbol: 'DOGEUSDT',
-          side: 'BUY',
-          price: 0.14,
-          quantity: 100,
-          timestamp: new Date(),
-          pnl: -20, // Total -200 = 10% drawdown
-          fee: 0.1,
-        };
-        riskManager.recordTrade(trade);
-      }
-
-      const stats = riskManager.getPortfolioStats();
-      expect(stats.drawdown).toBeCloseTo(0.1, 2);
-    });
-  });
-
-  describe('canTrade()', () => {
-    beforeEach(() => {
-      riskManager = new PortfolioRiskManager(totalCapital, 'moderate');
+      riskManager = new PortfolioRiskManager('moderate');
+      riskManager.updatePortfolioValue(2000);
     });
 
     it('should allow trading when no limits exceeded', () => {
-      expect(riskManager.canTrade('DOGEUSDT')).toBe(true);
+      const result = riskManager.canPlaceOrder('DOGEUSDT', 'BUY', 100, 0.14, 5, 10);
+
+      expect(result.allowed).toBe(true);
     });
 
     it('should block trading when circuit breaker tripped', () => {
       // Trip circuit breaker with consecutive losses
       for (let i = 0; i < 5; i++) {
-        const trade: Trade = {
-          id: `trade-${i}`,
-          symbol: 'DOGEUSDT',
-          side: 'BUY',
-          price: 0.14,
-          quantity: 100,
-          timestamp: new Date(),
-          pnl: -10,
-          fee: 0.1,
-        };
-        riskManager.recordTrade(trade);
+        riskManager.recordTrade('DOGEUSDT', -10);
       }
 
-      expect(riskManager.canTrade('DOGEUSDT')).toBe(false);
+      const result = riskManager.canPlaceOrder('DOGEUSDT', 'BUY', 100, 0.14, 5, 10);
+      expect(result.allowed).toBe(false);
+      expect(result.reason).toContain('paused');
+    });
+
+    it('should block when max orders per pair reached', () => {
+      const limits = riskManager.getLimits();
+      const result = riskManager.canPlaceOrder(
+        'DOGEUSDT',
+        'BUY',
+        100,
+        0.14,
+        limits.maxOpenOrdersPerPair,
+        20
+      );
+
+      expect(result.allowed).toBe(false);
+      expect(result.reason).toContain('Max orders per pair');
+    });
+
+    it('should block when total orders limit reached', () => {
+      const limits = riskManager.getLimits();
+      const result = riskManager.canPlaceOrder(
+        'DOGEUSDT',
+        'BUY',
+        100,
+        0.14,
+        5,
+        limits.maxTotalOpenOrders
+      );
+
+      expect(result.allowed).toBe(false);
+      expect(result.reason).toContain('Max total orders');
     });
   });
 
-  describe('getPortfolioStats()', () => {
+  describe('updatePortfolioValue()', () => {
     beforeEach(() => {
-      riskManager = new PortfolioRiskManager(totalCapital, 'moderate');
+      riskManager = new PortfolioRiskManager('moderate');
     });
 
-    it('should return correct initial stats', () => {
-      const stats = riskManager.getPortfolioStats();
+    it('should track peak portfolio value', () => {
+      riskManager.updatePortfolioValue(2000);
+      riskManager.updatePortfolioValue(2500);
+      riskManager.updatePortfolioValue(2200);
 
-      expect(stats.totalPnl).toBe(0);
-      expect(stats.totalTrades).toBe(0);
-      expect(stats.winRate).toBe(0);
-      expect(stats.drawdown).toBe(0);
+      const drawdown = riskManager.getCurrentDrawdown();
+      // Drawdown from peak 2500 to current 2200 = 12%
+      expect(drawdown).toBeCloseTo(12, 1);
     });
 
-    it('should calculate win rate correctly', () => {
-      // 3 wins, 2 losses
-      for (let i = 0; i < 3; i++) {
-        riskManager.recordTrade({
-          id: `win-${i}`,
-          symbol: 'DOGEUSDT',
-          side: 'SELL',
-          price: 0.15,
-          quantity: 100,
-          timestamp: new Date(),
-          pnl: 10,
-          fee: 0.1,
-        });
-      }
+    it('should calculate drawdown correctly', () => {
+      riskManager.updatePortfolioValue(2000);
+      riskManager.updatePortfolioValue(1800);
 
-      for (let i = 0; i < 2; i++) {
-        riskManager.recordTrade({
-          id: `loss-${i}`,
-          symbol: 'DOGEUSDT',
-          side: 'BUY',
-          price: 0.14,
-          quantity: 100,
-          timestamp: new Date(),
-          pnl: -5,
-          fee: 0.1,
-        });
-      }
-
-      const stats = riskManager.getPortfolioStats();
-      expect(stats.totalTrades).toBe(5);
-      expect(stats.winRate).toBeCloseTo(0.6, 2); // 3/5 = 60%
+      const drawdown = riskManager.getCurrentDrawdown();
+      // Drawdown from peak 2000 to current 1800 = 10%
+      expect(drawdown).toBe(10);
     });
   });
 
-  describe('resetCircuitBreaker()', () => {
+  describe('getStatus()', () => {
     beforeEach(() => {
-      riskManager = new PortfolioRiskManager(totalCapital, 'moderate');
+      riskManager = new PortfolioRiskManager('moderate');
+      riskManager.updatePortfolioValue(2000);
     });
 
-    it('should reset circuit breaker', () => {
+    it('should return correct status', () => {
+      riskManager.recordTrade('DOGEUSDT', -5);
+      riskManager.recordTrade('DOGEUSDT', 10);
+
+      const status = riskManager.getStatus();
+
+      expect(status).toHaveProperty('isPaused');
+      expect(status).toHaveProperty('pauseReason');
+      expect(status).toHaveProperty('strategy');
+      expect(status).toHaveProperty('dailyPnl');
+      expect(status).toHaveProperty('drawdown');
+      expect(status).toHaveProperty('consecutiveLosses');
+      expect(status.strategy).toBe('moderate');
+    });
+  });
+
+  describe('resume()', () => {
+    beforeEach(() => {
+      riskManager = new PortfolioRiskManager('moderate');
+      riskManager.updatePortfolioValue(2000);
+    });
+
+    it('should resume trading after pause', () => {
       // Trip circuit breaker
       for (let i = 0; i < 5; i++) {
-        riskManager.recordTrade({
-          id: `trade-${i}`,
-          symbol: 'DOGEUSDT',
-          side: 'BUY',
-          price: 0.14,
-          quantity: 100,
-          timestamp: new Date(),
-          pnl: -10,
-          fee: 0.1,
-        });
+        riskManager.recordTrade('DOGEUSDT', -10);
       }
 
-      expect(riskManager.isCircuitBreakerTripped()).toBe(true);
+      expect(riskManager.getStatus().isPaused).toBe(true);
 
-      riskManager.resetCircuitBreaker();
+      riskManager.resume();
 
-      expect(riskManager.isCircuitBreakerTripped()).toBe(false);
-      expect(riskManager.canTrade('DOGEUSDT')).toBe(true);
+      expect(riskManager.getStatus().isPaused).toBe(false);
+      expect(riskManager.getStatus().consecutiveLosses).toBe(0);
     });
   });
 
-  describe('getRiskEvents()', () => {
+  describe('setStrategy()', () => {
     beforeEach(() => {
-      riskManager = new PortfolioRiskManager(totalCapital, 'moderate');
+      riskManager = new PortfolioRiskManager('moderate');
     });
 
-    it('should return empty array initially', () => {
-      const events = riskManager.getRiskEvents();
+    it('should change strategy and update limits', () => {
+      riskManager.setStrategy('aggressive');
 
-      expect(Array.isArray(events)).toBe(true);
-      expect(events.length).toBe(0);
+      const status = riskManager.getStatus();
+      const limits = riskManager.getLimits();
+
+      expect(status.strategy).toBe('aggressive');
+      expect(limits.maxTotalExposure).toBe(90);
     });
 
-    it('should record risk events', () => {
-      // Trip daily loss limit
-      riskManager.recordTrade({
-        id: 'big-loss',
-        symbol: 'DOGEUSDT',
-        side: 'BUY',
-        price: 0.14,
-        quantity: 1000,
-        timestamp: new Date(),
-        pnl: -150,
-        fee: 1,
+    it('should update from conservative to moderate', () => {
+      const conservativeManager = new PortfolioRiskManager('conservative');
+      conservativeManager.setStrategy('moderate');
+
+      const limits = conservativeManager.getLimits();
+      expect(limits.maxTotalExposure).toBe(75);
+      expect(limits.pauseOnConsecutiveLosses).toBe(5);
+    });
+  });
+
+  describe('updateLimits()', () => {
+    beforeEach(() => {
+      riskManager = new PortfolioRiskManager('moderate');
+    });
+
+    it('should update specific limits', () => {
+      riskManager.updateLimits({ maxDailyLoss: 150 });
+
+      const limits = riskManager.getLimits();
+      expect(limits.maxDailyLoss).toBe(150);
+      // Other limits should remain unchanged
+      expect(limits.maxTotalExposure).toBe(75);
+    });
+
+    it('should allow partial limit updates', () => {
+      const originalLimits = riskManager.getLimits();
+
+      riskManager.updateLimits({
+        maxCorrelation: 0.7,
+        pauseOnConsecutiveLosses: 10,
       });
 
-      const events = riskManager.getRiskEvents();
-      expect(events.length).toBeGreaterThan(0);
-      expect(events[0].type).toBe('daily_loss_limit');
-      expect(events[0]).toHaveProperty('timestamp');
-      expect(events[0]).toHaveProperty('severity');
+      const newLimits = riskManager.getLimits();
+      expect(newLimits.maxCorrelation).toBe(0.7);
+      expect(newLimits.pauseOnConsecutiveLosses).toBe(10);
+      expect(newLimits.maxTotalExposure).toBe(originalLimits.maxTotalExposure);
     });
   });
 });
