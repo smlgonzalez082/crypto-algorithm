@@ -28,7 +28,7 @@ describe('GridBot', () => {
 
     // Setup mock implementations
     mockClient.connect = jest.fn().mockResolvedValue(undefined);
-    mockClient.disconnect = jest.fn().mockResolvedValue(undefined);
+    mockClient.disconnect = jest.fn().mockReturnValue(undefined);
     mockClient.getCurrentPrice = jest.fn().mockResolvedValue(0.14);
     mockClient.getBalance = jest.fn().mockResolvedValue({
       free: 1000,
@@ -37,22 +37,25 @@ describe('GridBot', () => {
     });
     mockClient.placeOrder = jest.fn().mockResolvedValue({
       orderId: '123',
-      symbol: 'DOGEUSDT',
+      tradingPair: 'DOGEUSDT',
+      clientOrderId: 'test-order-1',
       side: 'BUY',
-      type: 'LIMIT',
+      orderType: 'LIMIT',
       price: 0.14,
       quantity: 100,
+      filledQuantity: 0,
       status: 'NEW',
+      createdAt: new Date(),
     } as Order);
     mockClient.cancelAllOrders = jest.fn().mockResolvedValue(undefined);
-    mockClient.startPriceStream = jest.fn().mockResolvedValue(undefined);
-    mockClient.startUserStream = jest.fn().mockResolvedValue(undefined);
+    mockClient.startPriceStream = jest.fn().mockReturnValue(undefined);
+    mockClient.startUserStream = jest.fn().mockReturnValue(undefined);
     mockClient.onPriceUpdate = jest.fn();
     mockClient.onOrderUpdate = jest.fn();
 
     mockRiskManager.updateBalance = jest.fn();
-    mockRiskManager.canPlaceOrder = jest.fn().mockReturnValue(true);
-    mockRiskManager.recordTrade = jest.fn();
+    mockRiskManager.canPlaceOrder = jest.fn().mockReturnValue({ allowed: true, reason: '' });
+    mockRiskManager.recordTradePnl = jest.fn();
 
     // Create bot instance
     bot = new GridBot(mockClient, mockRiskManager);
@@ -135,7 +138,9 @@ describe('GridBot', () => {
 
     it('should handle stop errors', async () => {
       await bot.start();
-      mockClient.disconnect.mockRejectedValueOnce(new Error('Disconnect failed'));
+      mockClient.disconnect.mockImplementationOnce(() => {
+        throw new Error('Disconnect failed');
+      });
 
       await expect(bot.stop()).rejects.toThrow('Disconnect failed');
 
@@ -225,7 +230,7 @@ describe('GridBot', () => {
     });
 
     it('should respect risk manager limits', async () => {
-      mockRiskManager.canPlaceOrder.mockReturnValue(false);
+      mockRiskManager.canPlaceOrder.mockReturnValue({ allowed: false, reason: 'Risk limit exceeded' });
 
       await bot.start();
 

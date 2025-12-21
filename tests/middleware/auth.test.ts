@@ -111,7 +111,8 @@ describe('Authentication Middleware', () => {
 
       // Mock verify to succeed
       const { CognitoJwtVerifier } = await import('aws-jwt-verify');
-      const mockVerify = (CognitoJwtVerifier.create as jest.Mock)().verify as jest.Mock;
+      const mockVerifier = (CognitoJwtVerifier.create as jest.Mock)();
+      const mockVerify = mockVerifier.verify as jest.Mock<Promise<any>>;
       mockVerify.mockResolvedValue({
         sub: 'user-123',
         email: 'test@example.com',
@@ -212,7 +213,8 @@ describe('Authentication Middleware', () => {
       };
 
       const { CognitoJwtVerifier } = await import('aws-jwt-verify');
-      const mockVerify = (CognitoJwtVerifier.create as jest.Mock)().verify as jest.Mock;
+      const mockVerifier = (CognitoJwtVerifier.create as jest.Mock)();
+      const mockVerify = mockVerifier.verify as jest.Mock<Promise<any>>;
       mockVerify.mockResolvedValue({
         sub: 'user-123',
         email: 'test@example.com',
@@ -237,7 +239,8 @@ describe('Authentication Middleware', () => {
       };
 
       const { CognitoJwtVerifier } = await import('aws-jwt-verify');
-      const mockVerify = (CognitoJwtVerifier.create as jest.Mock)().verify as jest.Mock;
+      const mockVerifier = (CognitoJwtVerifier.create as jest.Mock)();
+      const mockVerify = mockVerifier.verify as jest.Mock<Promise<any>>;
       mockVerify.mockRejectedValue(new Error('Invalid token'));
 
       await optionalAuth(
