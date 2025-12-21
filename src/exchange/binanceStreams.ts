@@ -330,7 +330,7 @@ export class BinanceStreamManager {
     }
 
     // Use mini ticker for individual symbol price updates (more reliable for Binance.US)
-    this.wsClient.subscribeSpotSymbolMiniTicker(symbol);
+    this.wsClient.subscribeSpotSymbolMini24hrTicker(symbol);
     this.subscribedSymbols.add(symbol);
     logger.info({ symbol }, 'Subscribed to mini ticker stream');
   }

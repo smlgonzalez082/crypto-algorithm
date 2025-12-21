@@ -83,9 +83,9 @@ export async function authenticateToken(
 
     // Attach user info to request object
     req.user = {
-      sub: payload.sub,
-      email: payload.email,
-      username: payload.username,
+      sub: payload.sub as string,
+      email: payload.email as string | undefined,
+      username: payload.username as string | undefined,
     };
 
     next();
@@ -118,7 +118,7 @@ export async function authenticateToken(
  */
 export async function optionalAuth(
   req: Request,
-  res: Response,
+  _res: Response,
   next: NextFunction
 ): Promise<void> {
   if (!accessTokenVerifier) {
@@ -138,9 +138,9 @@ export async function optionalAuth(
     const payload = await accessTokenVerifier.verify(token);
 
     req.user = {
-      sub: payload.sub,
-      email: payload.email,
-      username: payload.username,
+      sub: payload.sub as string,
+      email: payload.email as string | undefined,
+      username: payload.username as string | undefined,
     };
 
     logger.debug({ sub: payload.sub }, 'Optional auth: user authenticated');

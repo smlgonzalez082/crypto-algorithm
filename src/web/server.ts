@@ -1,4 +1,4 @@
-import express, { Request, Response } from 'express';
+import express, { Request, Response, NextFunction } from 'express';
 import { createServer } from 'http';
 import { WebSocketServer, WebSocket } from 'ws';
 import path from 'path';
@@ -11,12 +11,25 @@ import { BinanceClient } from '../exchange/binance.js';
 import { RiskManager } from '../bot/risk.js';
 import { correlationAnalyzer } from '../analysis/correlation.js';
 import { initCognitoVerifier, authenticateToken } from '../middleware/auth.js';
-import type { RiskStrategy } from '../types/portfolio.js';
+import type { RiskStrategy, PairConfig as IPairConfig } from '../types/portfolio.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const logger = createLogger('server');
+
+// Async handler wrapper for Express routes
+type AsyncRequestHandler = (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => Promise<void>;
+
+function asyncHandler(fn: AsyncRequestHandler) {
+  return (req: Request, res: Response, next: NextFunction): void => {
+    Promise.resolve(fn(req, res, next)).catch(next);
+  };
+}
 
 export class WebServer {
   private app = express();
@@ -59,7 +72,7 @@ export class WebServer {
         return;
       }
       // Apply authentication middleware
-      authenticateToken(req, res, next);
+      void authenticateToken(req, res, next);
     });
 
     this.app.use(express.static(path.join(__dirname, 'static')));
@@ -218,32 +231,22 @@ export class WebServer {
     });
 
     // Get balances
-    this.app.get('/api/balances', async (_req: Request, res: Response) => {
-      try {
-        if (!this.binanceClient.connected) {
-          await this.binanceClient.connect();
-        }
-        const balances = await this.binanceClient.getBalances();
-        res.json(balances);
-      } catch (error) {
-        logger.error({ error }, 'Failed to get balances');
-        res.status(500).json({ error: 'Failed to get balances' });
+    this.app.get('/api/balances', asyncHandler(async (_req: Request, res: Response) => {
+      if (!this.binanceClient.connected) {
+        await this.binanceClient.connect();
       }
-    });
+      const balances = await this.binanceClient.getBalances();
+      res.json(balances);
+    }));
 
     // Get recent trades (from Binance API)
-    this.app.get('/api/trades', async (_req: Request, res: Response) => {
-      try {
-        if (!this.binanceClient.connected) {
-          await this.binanceClient.connect();
-        }
-        const trades = await this.binanceClient.getRecentTrades();
-        res.json(trades);
-      } catch (error) {
-        logger.error({ error }, 'Failed to get trades');
-        res.status(500).json({ error: 'Failed to get trades' });
+    this.app.get('/api/trades', asyncHandler(async (_req: Request, res: Response) => {
+      if (!this.binanceClient.connected) {
+        await this.binanceClient.connect();
       }
-    });
+      const trades = await this.binanceClient.getRecentTrades();
+      res.json(trades);
+    }));
 
     // Get trade history from database
     this.app.get('/api/trades/history', (req: Request, res: Response) => {
@@ -313,177 +316,142 @@ export class WebServer {
     });
 
     // Start bot (single pair mode - legacy)
-    this.app.post('/api/start', async (_req: Request, res: Response) => {
-      try {
-        if (this.isPortfolioMode) {
-          res.status(400).json({ error: 'Use /api/portfolio/start for portfolio mode' });
+    this.app.post('/api/start', asyncHandler(async (_req: Request, res: Response) => {
+      if (this.isPortfolioMode) {
+        res.status(400).json({ error: 'Use /api/portfolio/start for portfolio mode' });
+        return;
+      }
+
+      if (this.bot) {
+        const status = this.bot.getStatus();
+        if (status.status === 'running') {
+          res.status(400).json({ error: 'Bot is already running' });
           return;
         }
-
-        if (this.bot) {
-          const status = this.bot.getStatus();
-          if (status.status === 'running') {
-            res.status(400).json({ error: 'Bot is already running' });
-            return;
-          }
-        }
-
-        this.bot = new GridBot(this.binanceClient, this.riskManager);
-        await this.bot.start();
-        this.startStatusBroadcast();
-
-        res.json({ message: 'Bot started successfully' });
-      } catch (error) {
-        logger.error({ error }, 'Failed to start bot');
-        res.status(500).json({ error: 'Failed to start bot' });
       }
-    });
+
+      this.bot = new GridBot(this.binanceClient, this.riskManager);
+      await this.bot.start();
+      this.startStatusBroadcast();
+
+      res.json({ message: 'Bot started successfully' });
+    }));
 
     // Start portfolio bot (multi-pair mode)
-    this.app.post('/api/portfolio/start', async (req: Request, res: Response) => {
-      try {
-        if (this.portfolioBot) {
-          const status = this.portfolioBot.getStatus();
-          if (status.status === 'running') {
-            res.status(400).json({ error: 'Portfolio bot is already running' });
-            return;
-          }
+    this.app.post('/api/portfolio/start', asyncHandler(async (req: Request, res: Response) => {
+      if (this.portfolioBot) {
+        const status = this.portfolioBot.getStatus();
+        if (status.status === 'running') {
+          res.status(400).json({ error: 'Portfolio bot is already running' });
+          return;
         }
-
-        const {
-          pairs = getRecommendedPairs(),
-          totalCapital = config.totalCapital,
-          riskStrategy = config.riskStrategy as RiskStrategy,
-        } = req.body;
-
-        this.portfolioBot = new PortfolioGridBot(this.binanceClient, {
-          pairs,
-          totalCapital,
-          riskStrategy,
-          rebalanceThreshold: 10, // 10% deviation triggers rebalance
-          rebalanceInterval: 60000, // Check every minute
-          priceHistoryDays: 30,
-        });
-
-        this.isPortfolioMode = true;
-        await this.portfolioBot.start();
-        this.startStatusBroadcast();
-
-        res.json({
-          message: 'Portfolio bot started successfully',
-          pairs: pairs.map((p: { symbol: string }) => p.symbol),
-          totalCapital,
-          riskStrategy,
-        });
-      } catch (error) {
-        logger.error({ error }, 'Failed to start portfolio bot');
-        res.status(500).json({ error: 'Failed to start portfolio bot' });
       }
-    });
+
+      const {
+        pairs = getRecommendedPairs(),
+        totalCapital = config.totalCapital,
+        riskStrategy = config.riskStrategy as RiskStrategy,
+      } = req.body as { pairs?: IPairConfig[]; totalCapital?: number; riskStrategy?: RiskStrategy };
+
+      this.portfolioBot = new PortfolioGridBot(this.binanceClient, {
+        pairs: pairs as IPairConfig[],
+        totalCapital,
+        riskStrategy,
+        rebalanceThreshold: 10, // 10% deviation triggers rebalance
+        rebalanceInterval: 60000, // Check every minute
+        priceHistoryDays: 30,
+      });
+
+      this.isPortfolioMode = true;
+      await this.portfolioBot.start();
+      this.startStatusBroadcast();
+
+      res.json({
+        message: 'Portfolio bot started successfully',
+        pairs: Array.isArray(pairs) ? pairs.map((p: any) => p.symbol as string) : [],
+        totalCapital,
+        riskStrategy,
+      });
+    }));
 
     // Stop bot
-    this.app.post('/api/stop', async (_req: Request, res: Response) => {
-      try {
-        if (this.isPortfolioMode && this.portfolioBot) {
-          await this.portfolioBot.stop();
-          this.stopStatusBroadcast();
-          res.json({ message: 'Portfolio bot stopped successfully' });
-          return;
-        }
-
-        if (!this.bot) {
-          res.status(400).json({ error: 'Bot is not running' });
-          return;
-        }
-
-        await this.bot.stop();
+    this.app.post('/api/stop', asyncHandler(async (_req: Request, res: Response) => {
+      if (this.isPortfolioMode && this.portfolioBot) {
+        await this.portfolioBot.stop();
         this.stopStatusBroadcast();
-
-        res.json({ message: 'Bot stopped successfully' });
-      } catch (error) {
-        logger.error({ error }, 'Failed to stop bot');
-        res.status(500).json({ error: 'Failed to stop bot' });
+        res.json({ message: 'Portfolio bot stopped successfully' });
+        return;
       }
-    });
+
+      if (!this.bot) {
+        res.status(400).json({ error: 'Bot is not running' });
+        return;
+      }
+
+      await this.bot.stop();
+      this.stopStatusBroadcast();
+
+      res.json({ message: 'Bot stopped successfully' });
+    }));
 
     // Add pair to portfolio
-    this.app.post('/api/portfolio/pair', async (req: Request, res: Response) => {
-      try {
-        if (!this.portfolioBot) {
-          res.status(400).json({ error: 'Portfolio bot not running' });
-          return;
-        }
-
-        const { pair } = req.body;
-        await this.portfolioBot.addPair(pair);
-        res.json({ message: `Added ${pair.symbol} to portfolio` });
-      } catch (error) {
-        logger.error({ error }, 'Failed to add pair');
-        res.status(500).json({ error: 'Failed to add pair' });
+    this.app.post('/api/portfolio/pair', asyncHandler(async (req: Request, res: Response) => {
+      if (!this.portfolioBot) {
+        res.status(400).json({ error: 'Portfolio bot not running' });
+        return;
       }
-    });
+
+      const { pair } = req.body as { pair: any };
+      await this.portfolioBot.addPair(pair);
+      res.json({ message: `Added ${pair.symbol as string} to portfolio` });
+    }));
 
     // Remove pair from portfolio
-    this.app.delete('/api/portfolio/pair/:symbol', async (req: Request, res: Response) => {
-      try {
-        if (!this.portfolioBot) {
-          res.status(400).json({ error: 'Portfolio bot not running' });
-          return;
-        }
-
-        const { symbol } = req.params;
-        await this.portfolioBot.removePair(symbol);
-        res.json({ message: `Removed ${symbol} from portfolio` });
-      } catch (error) {
-        logger.error({ error }, 'Failed to remove pair');
-        res.status(500).json({ error: 'Failed to remove pair' });
+    this.app.delete('/api/portfolio/pair/:symbol', asyncHandler(async (req: Request, res: Response) => {
+      if (!this.portfolioBot) {
+        res.status(400).json({ error: 'Portfolio bot not running' });
+        return;
       }
-    });
+
+      const { symbol } = req.params;
+      await this.portfolioBot.removePair(symbol);
+      res.json({ message: `Removed ${symbol} from portfolio` });
+    }));
 
     // Update risk strategy
     this.app.put('/api/portfolio/strategy', (req: Request, res: Response) => {
-      try {
-        if (!this.portfolioBot) {
-          res.status(400).json({ error: 'Portfolio bot not running' });
-          return;
-        }
-
-        const { strategy } = req.body;
-        this.portfolioBot.updateRiskStrategy(strategy);
-        res.json({ message: `Risk strategy updated to ${strategy}` });
-      } catch (error) {
-        logger.error({ error }, 'Failed to update strategy');
-        res.status(500).json({ error: 'Failed to update strategy' });
+      if (!this.portfolioBot) {
+        res.status(400).json({ error: 'Portfolio bot not running' });
+        return;
       }
+
+      const { strategy } = req.body as { strategy: RiskStrategy };
+      this.portfolioBot.updateRiskStrategy(strategy);
+      res.json({ message: `Risk strategy updated to ${strategy}` });
     });
 
     // Toggle simulation mode
     this.app.put('/api/simulation', (req: Request, res: Response) => {
-      try {
-        const { enabled } = req.body;
+      const { enabled } = req.body as { enabled: boolean };
 
-        // Check if bot is running
-        const isRunning = (this.portfolioBot && this.portfolioBot.getStatus().status === 'running') ||
-                          (this.bot && this.bot.getStatus().status === 'running');
+      // Check if bot is running
+      const isRunning = (this.portfolioBot && this.portfolioBot.getStatus().status === 'running') ||
+                        (this.bot && this.bot.getStatus().status === 'running');
 
-        if (isRunning) {
-          res.status(400).json({ error: 'Cannot change simulation mode while bot is running. Stop the bot first.' });
-          return;
-        }
-
-        // Update config - this modifies the runtime config object
-        (config as { simulationMode: boolean }).simulationMode = enabled;
-
-        logger.info({ simulationMode: enabled }, 'Simulation mode updated');
-        res.json({
-          message: `Simulation mode ${enabled ? 'enabled' : 'disabled'}`,
-          simulationMode: enabled,
-          warning: enabled ? null : 'LIVE TRADING ENABLED - Real orders will be placed!'
-        });
-      } catch (error) {
-        logger.error({ error }, 'Failed to update simulation mode');
-        res.status(500).json({ error: 'Failed to update simulation mode' });
+      if (isRunning) {
+        res.status(400).json({ error: 'Cannot change simulation mode while bot is running. Stop the bot first.' });
+        return;
       }
+
+      // Update config - this modifies the runtime config object
+      (config as { simulationMode: boolean }).simulationMode = enabled;
+
+      logger.info({ simulationMode: enabled }, 'Simulation mode updated');
+      res.json({
+        message: `Simulation mode ${enabled ? 'enabled' : 'disabled'}`,
+        simulationMode: enabled,
+        warning: enabled ? null : 'LIVE TRADING ENABLED - Real orders will be placed!'
+      });
     });
 
     // Serve frontend
