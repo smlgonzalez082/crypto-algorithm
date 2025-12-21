@@ -1,10 +1,10 @@
-import { createLogger } from '../utils/logger.js';
-import { config } from '../utils/config.js';
-import { BinanceClient } from '../exchange/binance.js';
-import { binanceStreams, TickerData } from '../exchange/binanceStreams.js';
-import { PortfolioRiskManager } from './portfolioRisk.js';
-import { correlationAnalyzer } from '../analysis/correlation.js';
-import { tradingDb } from '../models/database.js';
+import { createLogger } from "../utils/logger.js";
+import { config } from "../utils/config.js";
+import { BinanceClient } from "../exchange/binance.js";
+import { binanceStreams, TickerData } from "../exchange/binanceStreams.js";
+import { PortfolioRiskManager } from "./portfolioRisk.js";
+import { correlationAnalyzer } from "../analysis/correlation.js";
+import { tradingDb } from "../models/database.js";
 import type {
   PairConfig,
   PortfolioState,
@@ -14,10 +14,10 @@ import type {
   RiskStrategy,
   RebalanceAction,
   PortfolioRiskMetrics,
-} from '../types/portfolio.js';
-import type { Order, OrderSide } from '../types/index.js';
+} from "../types/portfolio.js";
+import type { Order, OrderSide } from "../types/index.js";
 
-const logger = createLogger('portfolio-bot');
+const logger = createLogger("portfolio-bot");
 
 interface PairGridBot {
   config: PairConfig;
@@ -29,7 +29,7 @@ interface PairGridBot {
   realizedPnl: number;
   unrealizedPnl: number;
   tradesCount: number;
-  status: 'stopped' | 'running' | 'paused' | 'error';
+  status: "stopped" | "running" | "paused" | "error";
 }
 
 interface PortfolioConfig {
@@ -55,7 +55,7 @@ export class PortfolioGridBot {
   private riskManager: PortfolioRiskManager;
   private config: PortfolioConfig;
   private pairBots: Map<string, PairGridBot> = new Map();
-  private status: PortfolioStatus = 'stopped';
+  private status: PortfolioStatus = "stopped";
   private availableCapital: number;
   private allocatedCapital: number = 0;
   private startTime: Date | null = null;
@@ -76,7 +76,7 @@ export class PortfolioGridBot {
         totalCapital: portfolioConfig.totalCapital,
         strategy: portfolioConfig.riskStrategy,
       },
-      'Portfolio bot initialized'
+      "Portfolio bot initialized",
     );
   }
 
@@ -85,36 +85,39 @@ export class PortfolioGridBot {
   // ===========================================================================
 
   async start(): Promise<void> {
-    if (this.status === 'running') {
-      logger.warn('Portfolio bot is already running');
+    if (this.status === "running") {
+      logger.warn("Portfolio bot is already running");
       return;
     }
 
     try {
-      logger.info('Starting portfolio bot...');
-      this.status = 'starting';
+      logger.info("Starting portfolio bot...");
+      this.status = "starting";
 
       // Connect to exchange
       await this.client.connect();
 
       // Fetch initial balances
       const balances = await this.client.getBalances();
-      const usdtBalance = balances.find((b) => b.asset === 'USDT');
+      const usdtBalance = balances.find((b) => b.asset === "USDT");
       if (usdtBalance) {
-        this.availableCapital = Math.min(this.config.totalCapital, usdtBalance.free);
+        this.availableCapital = Math.min(
+          this.config.totalCapital,
+          usdtBalance.free,
+        );
         this.riskManager.updatePortfolioValue(this.availableCapital);
       }
 
       // Load price history for correlation analysis
-      await this.loadPriceHistory();
+      this.loadPriceHistory();
 
       // Initialize pair bots
       for (const pairConfig of this.config.pairs) {
-        await this.initializePairBot(pairConfig);
+        this.initializePairBot(pairConfig);
       }
 
       // Restore state from database if available
-      await this.restoreStateFromDb();
+      this.restoreStateFromDb();
 
       // Start all pair bots
       for (const [symbol, pairBot] of this.pairBots) {
@@ -128,25 +131,25 @@ export class PortfolioGridBot {
       // Start rebalance timer
       this.startRebalanceTimer();
 
-      this.status = 'running';
+      this.status = "running";
       this.startTime = new Date();
-      logger.info('Portfolio bot started successfully');
+      logger.info("Portfolio bot started successfully");
     } catch (error) {
-      this.status = 'error';
-      logger.error({ error }, 'Failed to start portfolio bot');
+      this.status = "error";
+      logger.error({ error }, "Failed to start portfolio bot");
       throw error;
     }
   }
 
   async stop(): Promise<void> {
-    if (this.status === 'stopped') {
-      logger.warn('Portfolio bot is already stopped');
+    if (this.status === "stopped") {
+      logger.warn("Portfolio bot is already stopped");
       return;
     }
 
     try {
-      logger.info('Stopping portfolio bot...');
-      this.status = 'stopping';
+      logger.info("Stopping portfolio bot...");
+      this.status = "stopping";
 
       // Stop rebalance timer
       if (this.rebalanceTimer) {
@@ -162,7 +165,7 @@ export class PortfolioGridBot {
 
       // Disconnect WebSocket streams
       if (this.useWebSocket) {
-        await binanceStreams.disconnect();
+        binanceStreams.disconnect();
         this.wsConnected = false;
       }
 
@@ -172,13 +175,13 @@ export class PortfolioGridBot {
       }
 
       // Disconnect REST client
-      await this.client.disconnect();
+      this.client.disconnect();
 
-      this.status = 'stopped';
-      logger.info('Portfolio bot stopped');
+      this.status = "stopped";
+      logger.info("Portfolio bot stopped");
     } catch (error) {
-      this.status = 'error';
-      logger.error({ error }, 'Error stopping portfolio bot');
+      this.status = "error";
+      logger.error({ error }, "Error stopping portfolio bot");
       throw error;
     }
   }
@@ -187,20 +190,20 @@ export class PortfolioGridBot {
   // PAIR BOT MANAGEMENT
   // ===========================================================================
 
-  private async initializePairBot(config: PairConfig): Promise<void> {
+  private initializePairBot(config: PairConfig): void {
     // Calculate allocation based on correlation and volatility
     const existingPairs = Array.from(this.pairBots.keys());
     const optimalSize = this.riskManager.calculateOptimalPositionSize(
       config.symbol,
       0, // Will be updated with actual price
       this.availableCapital,
-      existingPairs
+      existingPairs,
     );
 
     // Use configured allocation or optimal
     const allocation = Math.min(
       this.availableCapital * (config.allocationPercent / 100),
-      optimalSize.size
+      optimalSize.size,
     );
 
     // Generate grid levels
@@ -216,7 +219,7 @@ export class PortfolioGridBot {
       realizedPnl: 0,
       unrealizedPnl: 0,
       tradesCount: 0,
-      status: 'stopped',
+      status: "stopped",
     };
 
     this.pairBots.set(config.symbol, pairBot);
@@ -230,7 +233,7 @@ export class PortfolioGridBot {
         gridLevels: gridLevels.length,
         reason: optimalSize.reason,
       },
-      'Pair bot initialized'
+      "Pair bot initialized",
     );
   }
 
@@ -238,7 +241,7 @@ export class PortfolioGridBot {
     const levels: GridLevelState[] = [];
     const { gridUpper, gridLower, gridCount, gridType } = config;
 
-    if (gridType === 'geometric') {
+    if (gridType === "geometric") {
       const ratio = Math.pow(gridUpper / gridLower, 1 / gridCount);
       for (let i = 0; i <= gridCount; i++) {
         levels.push({
@@ -246,7 +249,7 @@ export class PortfolioGridBot {
           price: gridLower * Math.pow(ratio, i),
           buyOrderId: null,
           sellOrderId: null,
-          status: 'empty',
+          status: "empty",
           filledAt: null,
         });
       }
@@ -258,7 +261,7 @@ export class PortfolioGridBot {
           price: gridLower + spacing * i,
           buyOrderId: null,
           sellOrderId: null,
-          status: 'empty',
+          status: "empty",
           filledAt: null,
         });
       }
@@ -267,34 +270,43 @@ export class PortfolioGridBot {
     return levels;
   }
 
-  private async startPairBot(symbol: string, pairBot: PairGridBot): Promise<void> {
+  private async startPairBot(
+    symbol: string,
+    pairBot: PairGridBot,
+  ): Promise<void> {
     try {
       // Get current price for this symbol
       pairBot.currentPrice = await this.fetchPriceForSymbol(symbol);
 
-      logger.info({ symbol, price: pairBot.currentPrice }, 'Fetched current price');
+      logger.info(
+        { symbol, price: pairBot.currentPrice },
+        "Fetched current price",
+      );
 
       // Place initial grid orders
       await this.placeInitialOrders(symbol, pairBot);
 
-      pairBot.status = 'running';
+      pairBot.status = "running";
     } catch (error) {
-      logger.error({ error, symbol }, 'Failed to start pair bot');
-      pairBot.status = 'error';
+      logger.error({ error, symbol }, "Failed to start pair bot");
+      pairBot.status = "error";
     }
   }
 
-  private async stopPairBot(symbol: string, pairBot: PairGridBot): Promise<void> {
+  private async stopPairBot(
+    symbol: string,
+    pairBot: PairGridBot,
+  ): Promise<void> {
     try {
       // Cancel all active orders for this pair
       for (const [orderId] of pairBot.activeOrders) {
         await this.client.cancelOrder(orderId);
       }
       pairBot.activeOrders.clear();
-      pairBot.status = 'stopped';
-      logger.info({ symbol }, 'Pair bot stopped');
+      pairBot.status = "stopped";
+      logger.info({ symbol }, "Pair bot stopped");
     } catch (error) {
-      logger.error({ error, symbol }, 'Error stopping pair bot');
+      logger.error({ error, symbol }, "Error stopping pair bot");
     }
   }
 
@@ -302,7 +314,10 @@ export class PortfolioGridBot {
   // ORDER MANAGEMENT
   // ===========================================================================
 
-  private async placeInitialOrders(symbol: string, pairBot: PairGridBot): Promise<void> {
+  private async placeInitialOrders(
+    symbol: string,
+    pairBot: PairGridBot,
+  ): Promise<void> {
     const currentPrice = pairBot.currentPrice;
     const belowPrice: GridLevelState[] = [];
     const abovePrice: GridLevelState[] = [];
@@ -323,14 +338,17 @@ export class PortfolioGridBot {
         sellLevels: abovePrice.length,
         currentPrice,
       },
-      'Placing initial orders'
+      "Placing initial orders",
     );
 
     // Place buy orders below current price (skip levels that already have orders)
     for (const level of belowPrice) {
       // Skip if this level already has an active buy order
       if (level.buyOrderId && pairBot.activeOrders.has(level.buyOrderId)) {
-        logger.debug({ symbol, level: level.level }, 'Skipping level - already has buy order');
+        logger.debug(
+          { symbol, level: level.level },
+          "Skipping level - already has buy order",
+        );
         continue;
       }
       await this.placeBuyOrder(symbol, pairBot, level);
@@ -340,7 +358,10 @@ export class PortfolioGridBot {
     for (const level of abovePrice) {
       // Skip if this level already has an active sell order
       if (level.sellOrderId && pairBot.activeOrders.has(level.sellOrderId)) {
-        logger.debug({ symbol, level: level.level }, 'Skipping level - already has sell order');
+        logger.debug(
+          { symbol, level: level.level },
+          "Skipping level - already has sell order",
+        );
         continue;
       }
       await this.placeSellOrder(symbol, pairBot, level);
@@ -350,92 +371,114 @@ export class PortfolioGridBot {
   private async placeBuyOrder(
     symbol: string,
     pairBot: PairGridBot,
-    level: GridLevelState
+    level: GridLevelState,
   ): Promise<void> {
     const totalOrders = this.getTotalOpenOrders();
     const pairOrders = pairBot.activeOrders.size;
 
     const check = this.riskManager.canPlaceOrder(
       symbol,
-      'BUY',
+      "BUY",
       pairBot.config.amountPerGrid,
       level.price,
       pairOrders,
-      totalOrders
+      totalOrders,
     );
 
     if (!check.allowed) {
-      logger.warn({ symbol, level: level.level, reason: check.reason }, 'Buy order blocked');
+      logger.warn(
+        { symbol, level: level.level, reason: check.reason },
+        "Buy order blocked",
+      );
       return;
     }
 
     try {
       const order = await this.placeLimitOrderForSymbol(
         symbol,
-        'BUY',
+        "BUY",
         level.price,
         pairBot.config.amountPerGrid,
-        level.level
+        level.level,
       );
 
       if (order) {
         level.buyOrderId = order.orderId;
-        level.status = 'buy_pending';
+        level.status = "buy_pending";
         pairBot.activeOrders.set(order.orderId, order);
 
         logger.debug(
-          { symbol, level: level.level, price: level.price, orderId: order.orderId },
-          'Buy order placed'
+          {
+            symbol,
+            level: level.level,
+            price: level.price,
+            orderId: order.orderId,
+          },
+          "Buy order placed",
         );
       }
     } catch (error) {
-      logger.error({ error, symbol, level: level.level }, 'Failed to place buy order');
+      logger.error(
+        { error, symbol, level: level.level },
+        "Failed to place buy order",
+      );
     }
   }
 
   private async placeSellOrder(
     symbol: string,
     pairBot: PairGridBot,
-    level: GridLevelState
+    level: GridLevelState,
   ): Promise<void> {
     const totalOrders = this.getTotalOpenOrders();
     const pairOrders = pairBot.activeOrders.size;
 
     const check = this.riskManager.canPlaceOrder(
       symbol,
-      'SELL',
+      "SELL",
       pairBot.config.amountPerGrid,
       level.price,
       pairOrders,
-      totalOrders
+      totalOrders,
     );
 
     if (!check.allowed) {
-      logger.warn({ symbol, level: level.level, reason: check.reason }, 'Sell order blocked');
+      logger.warn(
+        { symbol, level: level.level, reason: check.reason },
+        "Sell order blocked",
+      );
       return;
     }
 
     try {
       const order = await this.placeLimitOrderForSymbol(
         symbol,
-        'SELL',
+        "SELL",
         level.price,
         pairBot.config.amountPerGrid,
-        level.level
+        level.level,
       );
 
       if (order) {
         level.sellOrderId = order.orderId;
-        level.status = 'sell_pending';
+        level.status = "sell_pending";
         pairBot.activeOrders.set(order.orderId, order);
 
         logger.debug(
-          { symbol, level: level.level, price: level.price, orderId: order.orderId },
-          'Sell order placed'
+          {
+            symbol,
+            level: level.level,
+            price: level.price,
+            orderId: order.orderId,
+          },
+          "Sell order placed",
         );
       }
     } catch (error) {
-      logger.error({ error, symbol, level: level.level }, 'Failed to place sell order');
+      logger.error(
+        { error, symbol, level: level.level },
+        "Failed to place sell order",
+      );
     }
   }
 
@@ -460,9 +503,9 @@ export class PortfolioGridBot {
 
         pairBot.activeOrders.set(order.orderId, order);
 
-        if (order.status === 'FILLED') {
+        if (order.status === "FILLED") {
           await this.handleFilledOrder(symbol, pairBot, order);
-        } else if (order.status === 'CANCELED' || order.status === 'EXPIRED') {
+        } else if (order.status === "CANCELED" || order.status === "EXPIRED") {
           pairBot.activeOrders.delete(order.orderId);
         }
         return;
@@ -473,14 +516,17 @@ export class PortfolioGridBot {
   private async handleFilledOrder(
     symbol: string,
     pairBot: PairGridBot,
-    order: Order
+    order: Order,
   ): Promise<void> {
     const level = pairBot.gridLevels.find(
-      (l) => l.buyOrderId === order.orderId || l.sellOrderId === order.orderId
+      (l) => l.buyOrderId === order.orderId || l.sellOrderId === order.orderId,
     );
 
     if (!level) {
-      logger.warn({ symbol, orderId: order.orderId }, 'Filled order not found in grid levels');
+      logger.warn(
+        { symbol, orderId: order.orderId },
+        "Filled order not found in grid levels",
+      );
       return;
     }
 
@@ -490,14 +536,19 @@ export class PortfolioGridBot {
     const orderValue = order.price * order.quantity;
     let realizedPnl = 0;
 
-    if (order.side === 'BUY') {
+    if (order.side === "BUY") {
       logger.info(
-        { symbol, level: level.level, price: order.price, quantity: order.quantity },
-        'Buy order filled'
+        {
+          symbol,
+          level: level.level,
+          price: order.price,
+          quantity: order.quantity,
+        },
+        "Buy order filled",
       );
 
       level.buyOrderId = null;
-      level.status = 'bought';
+      level.status = "bought";
       level.filledAt = new Date();
 
       // Update position
@@ -505,7 +556,9 @@ export class PortfolioGridBot {
       pairBot.positionValue -= orderValue;
 
       // Place sell order at next level up
-      const nextLevel = pairBot.gridLevels.find((l) => l.level === level.level + 1);
+      const nextLevel = pairBot.gridLevels.find(
+        (l) => l.level === level.level + 1,
+      );
       if (nextLevel && !nextLevel.sellOrderId) {
         await this.placeSellOrder(symbol, pairBot, nextLevel);
       }
@@ -514,12 +567,17 @@ export class PortfolioGridBot {
       this.riskManager.recordTrade(symbol, -orderValue);
     } else {
       logger.info(
-        { symbol, level: level.level, price: order.price, quantity: order.quantity },
-        'Sell order filled'
+        {
+          symbol,
+          level: level.level,
+          price: order.price,
+          quantity: order.quantity,
+        },
+        "Sell order filled",
       );
 
       level.sellOrderId = null;
-      level.status = 'sold';
+      level.status = "sold";
       level.filledAt = new Date();
 
       // Update position
@@ -532,7 +590,9 @@ export class PortfolioGridBot {
       pairBot.realizedPnl += realizedPnl;
 
       // Place buy order at next level down
-      const prevLevel = pairBot.gridLevels.find((l) => l.level === level.level - 1);
+      const prevLevel = pairBot.gridLevels.find(
+        (l) => l.level === level.level - 1,
+      );
       if (prevLevel && !prevLevel.buyOrderId) {
         await this.placeBuyOrder(symbol, pairBot, prevLevel);
       }
@@ -592,16 +652,16 @@ export class PortfolioGridBot {
   private async startWebSocketStreams(): Promise<void> {
     try {
       // Connect to Binance WebSocket
-      await binanceStreams.connect();
+      binanceStreams.connect();
 
       // Track connection status
       binanceStreams.onConnectionChange((connected) => {
         this.wsConnected = connected;
         if (!connected) {
-          logger.warn('WebSocket disconnected, falling back to polling');
+          logger.warn("WebSocket disconnected, falling back to polling");
           this.startFallbackPolling();
         } else {
-          logger.info('WebSocket connected, stopping fallback polling');
+          logger.info("WebSocket connected, stopping fallback polling");
           this.stopFallbackPolling();
         }
       });
@@ -621,16 +681,19 @@ export class PortfolioGridBot {
 
       // Register order update callback
       binanceStreams.onOrder((order) => {
-        this.handleOrderUpdate(order);
+        void this.handleOrderUpdate(order);
       });
 
       this.wsConnected = true;
       logger.info(
         { symbols: Array.from(this.pairBots.keys()) },
-        'WebSocket streams started for all pairs'
+        "WebSocket streams started for all pairs",
       );
     } catch (error) {
-      logger.error({ error }, 'Failed to start WebSocket streams, falling back to polling');
+      logger.error(
+        { error },
+        "Failed to start WebSocket streams, falling back to polling",
+      );
       this.useWebSocket = false;
       await this.startPollingStreams();
     }
@@ -649,7 +712,7 @@ export class PortfolioGridBot {
     if (Math.abs(priceChangePercent) > 5) {
       logger.info(
         { symbol, price, priceChangePercent, volume },
-        'Significant price movement detected'
+        "Significant price movement detected",
       );
     }
   }
@@ -658,7 +721,7 @@ export class PortfolioGridBot {
    * Start polling-based price updates (fallback or primary if WebSocket unavailable)
    */
   private async startPollingStreams(): Promise<void> {
-    logger.info('Starting polling-based price streams (5s interval)');
+    logger.info("Starting polling-based price streams (5s interval)");
 
     // Initial price fetch
     for (const [symbol] of this.pairBots) {
@@ -666,7 +729,7 @@ export class PortfolioGridBot {
         const price = await this.fetchPriceForSymbol(symbol);
         this.handlePriceUpdate(symbol, price);
       } catch (error) {
-        logger.error({ error, symbol }, 'Failed to fetch initial price');
+        logger.error({ error, symbol }, "Failed to fetch initial price");
       }
     }
 
@@ -679,21 +742,23 @@ export class PortfolioGridBot {
       clearInterval(this.pricePollingInterval);
     }
 
-    logger.debug('Starting price polling interval (5s)');
+    logger.debug("Starting price polling interval (5s)");
 
     // Poll prices every 5 seconds for all pairs
-    this.pricePollingInterval = setInterval(async () => {
-      logger.debug('Price poll tick');
-      for (const [symbol] of this.pairBots) {
-        try {
-          logger.debug({ symbol }, 'Fetching price for symbol');
-          const price = await this.fetchPriceForSymbol(symbol);
-          logger.debug({ symbol, price }, 'Price fetched successfully');
-          this.handlePriceUpdate(symbol, price);
-        } catch (error) {
-          logger.error({ error, symbol }, 'Failed to fetch price');
+    this.pricePollingInterval = setInterval(() => {
+      void (async () => {
+        logger.debug("Price poll tick");
+        for (const [symbol] of this.pairBots) {
+          try {
+            logger.debug({ symbol }, "Fetching price for symbol");
+            const price = await this.fetchPriceForSymbol(symbol);
+            logger.debug({ symbol, price }, "Price fetched successfully");
+            this.handlePriceUpdate(symbol, price);
+          } catch (error) {
+            logger.error({ error, symbol }, "Failed to fetch price");
+          }
         }
-      }
+      })();
     }, 5000);
   }
 
@@ -702,7 +767,7 @@ export class PortfolioGridBot {
    */
   private startFallbackPolling(): void {
     if (!this.pricePollingInterval) {
-      logger.info('Starting fallback polling due to WebSocket disconnect');
+      logger.info("Starting fallback polling due to WebSocket disconnect");
       this.startPricePolling();
     }
   }
@@ -714,7 +779,7 @@ export class PortfolioGridBot {
     if (this.pricePollingInterval && this.wsConnected) {
       clearInterval(this.pricePollingInterval);
       this.pricePollingInterval = null;
-      logger.info('Stopped fallback polling, WebSocket active');
+      logger.info("Stopped fallback polling, WebSocket active");
     }
   }
 
@@ -728,27 +793,43 @@ export class PortfolioGridBot {
     if (pairBot.positionSize > 0) {
       const avgBuyPrice =
         pairBot.gridLevels
-          .filter((l) => l.status === 'bought')
+          .filter((l) => l.status === "bought")
           .reduce((sum, l) => sum + l.price, 0) /
-        Math.max(1, pairBot.gridLevels.filter((l) => l.status === 'bought').length);
+        Math.max(
+          1,
+          pairBot.gridLevels.filter((l) => l.status === "bought").length,
+        );
 
       pairBot.unrealizedPnl = (price - avgBuyPrice) * pairBot.positionSize;
     }
 
     // Check if price is outside grid range
-    if (price < pairBot.config.gridLower * 0.95 || price > pairBot.config.gridUpper * 1.05) {
+    if (
+      price < pairBot.config.gridLower * 0.95 ||
+      price > pairBot.config.gridUpper * 1.05
+    ) {
       logger.warn(
-        { symbol, price, gridLower: pairBot.config.gridLower, gridUpper: pairBot.config.gridUpper },
-        'Price outside grid range'
+        {
+          symbol,
+          price,
+          gridLower: pairBot.config.gridLower,
+          gridUpper: pairBot.config.gridUpper,
+        },
+        "Price outside grid range",
       );
     }
 
     // Update correlation data
-    correlationAnalyzer.updatePriceHistory(symbol, [{ timestamp: Date.now(), close: price }]);
+    correlationAnalyzer.updatePriceHistory(symbol, [
+      { timestamp: Date.now(), close: price },
+    ]);
 
     // Persist price to database (throttled - every minute)
     const now = Date.now();
-    if (!this.lastPriceSave.get(symbol) || now - (this.lastPriceSave.get(symbol) || 0) > 60000) {
+    if (
+      !this.lastPriceSave.get(symbol) ||
+      now - (this.lastPriceSave.get(symbol) || 0) > 60000
+    ) {
       tradingDb.savePricePoint(symbol, price);
       this.lastPriceSave.set(symbol, now);
     }
@@ -762,28 +843,31 @@ export class PortfolioGridBot {
 
   private startRebalanceTimer(): void {
     this.rebalanceTimer = setInterval(() => {
-      this.checkAndRebalance();
+      void this.checkAndRebalance();
     }, this.config.rebalanceInterval);
   }
 
-  private async checkAndRebalance(): Promise<void> {
-    if (this.status !== 'running') return;
+  private checkAndRebalance(): void {
+    if (this.status !== "running") return;
 
     const state = this.getPortfolioState();
     const actions = this.riskManager.suggestRebalance(state);
 
     if (actions.length > 0) {
-      logger.info({ actions: actions.length }, 'Rebalance suggested');
+      logger.info({ actions: actions.length }, "Rebalance suggested");
 
       for (const action of actions) {
-        if (Math.abs(action.currentAllocation - action.targetAllocation) > this.config.rebalanceThreshold) {
-          await this.executeRebalanceAction(action);
+        if (
+          Math.abs(action.currentAllocation - action.targetAllocation) >
+          this.config.rebalanceThreshold
+        ) {
+          this.executeRebalanceAction(action);
         }
       }
     }
   }
 
-  private async executeRebalanceAction(action: RebalanceAction): Promise<void> {
+  private executeRebalanceAction(action: RebalanceAction): void {
     const pairBot = this.pairBots.get(action.pair);
     if (!pairBot) return;
 
@@ -795,11 +879,12 @@ export class PortfolioGridBot {
         target: action.targetAllocation.toFixed(1),
         reason: action.reason,
       },
-      'Executing rebalance'
+      "Executing rebalance",
     );
 
     // Simplified rebalance: adjust grid amount
-    const adjustmentFactor = action.targetAllocation / Math.max(0.1, action.currentAllocation);
+    const adjustmentFactor =
+      action.targetAllocation / Math.max(0.1, action.currentAllocation);
     pairBot.config.amountPerGrid *= adjustmentFactor;
 
     // Could also cancel and replace orders here for more aggressive rebalancing
@@ -809,8 +894,8 @@ export class PortfolioGridBot {
   // PRICE HISTORY FOR CORRELATION
   // ===========================================================================
 
-  private async loadPriceHistory(): Promise<void> {
-    logger.info('Loading price history for correlation analysis...');
+  private loadPriceHistory(): void {
+    logger.info("Loading price history for correlation analysis...");
 
     for (const pairConfig of this.config.pairs) {
       try {
@@ -819,12 +904,18 @@ export class PortfolioGridBot {
         if (dbHistory.length > 0) {
           correlationAnalyzer.updatePriceHistory(
             pairConfig.symbol,
-            dbHistory.map(p => ({ timestamp: p.timestamp, close: p.price }))
+            dbHistory.map((p) => ({ timestamp: p.timestamp, close: p.price })),
           );
-          logger.info({ symbol: pairConfig.symbol, points: dbHistory.length }, 'Loaded price history from database');
+          logger.info(
+            { symbol: pairConfig.symbol, points: dbHistory.length },
+            "Loaded price history from database",
+          );
         }
       } catch (error) {
-        logger.warn({ error, symbol: pairConfig.symbol }, 'Failed to load price history');
+        logger.warn(
+          { error, symbol: pairConfig.symbol },
+          "Failed to load price history",
+        );
       }
     }
   }
@@ -836,13 +927,13 @@ export class PortfolioGridBot {
   /**
    * Restores state from database after restart
    */
-  private async restoreStateFromDb(): Promise<void> {
-    logger.info('Attempting to restore state from database...');
+  private restoreStateFromDb(): void {
+    logger.info("Attempting to restore state from database...");
 
     // Get last portfolio snapshot
     const snapshot = tradingDb.getLatestPortfolioSnapshot();
     if (snapshot) {
-      logger.info({ snapshot }, 'Found previous portfolio snapshot');
+      logger.info({ snapshot }, "Found previous portfolio snapshot");
     }
 
     // Restore pair states
@@ -854,11 +945,11 @@ export class PortfolioGridBot {
         const pairBot = this.pairBots.get(pairConfig.symbol);
         if (pairBot) {
           // Restore grid levels but clear old order IDs (they're from previous session)
-          pairBot.gridLevels = savedGrid.map(level => ({
+          pairBot.gridLevels = savedGrid.map((level) => ({
             ...level,
             buyOrderId: null,
             sellOrderId: null,
-            status: 'empty'
+            status: "empty",
           }));
           pairBot.positionSize = savedState.positionSize;
           pairBot.positionValue = savedState.positionValue;
@@ -872,7 +963,7 @@ export class PortfolioGridBot {
               trades: savedState.tradesCount,
               pnl: savedState.realizedPnl,
             },
-            'Restored pair state from database (cleared old order IDs)'
+            "Restored pair state from database (cleared old order IDs)",
           );
         }
       }
@@ -882,7 +973,10 @@ export class PortfolioGridBot {
   /**
    * Gets trade history from database
    */
-  getTradeHistory(symbol?: string, limit = 100): ReturnType<typeof tradingDb.getTrades> {
+  getTradeHistory(
+    symbol?: string,
+    limit = 100,
+  ): ReturnType<typeof tradingDb.getTrades> {
     return tradingDb.getTrades(symbol, limit);
   }
 
@@ -914,11 +1008,11 @@ export class PortfolioGridBot {
   private async fetchPriceForSymbol(symbol: string): Promise<number> {
     // This is a workaround since the current client is single-pair
     // In production, we'd modify BinanceClient to support multi-symbol
-    if (!this.client['client']) throw new Error('Client not connected');
+    if (!this.client["client"]) throw new Error("Client not connected");
 
-    const ticker = await this.client['client'].getSymbolPriceTicker({ symbol });
+    const ticker = await this.client["client"].getSymbolPriceTicker({ symbol });
     if (Array.isArray(ticker)) {
-      throw new Error('Unexpected response');
+      throw new Error("Unexpected response");
     }
     return parseFloat(String(ticker.price));
   }
@@ -928,9 +1022,9 @@ export class PortfolioGridBot {
     side: OrderSide,
     price: number,
     quantity: number,
-    gridLevel: number
+    gridLevel: number,
   ): Promise<Order | null> {
-    if (!this.client['client']) throw new Error('Client not connected');
+    if (!this.client["client"]) throw new Error("Client not connected");
 
     const roundedPrice = this.client.roundPrice(price);
     const roundedQuantity = this.client.roundQuantity(quantity);
@@ -944,29 +1038,35 @@ export class PortfolioGridBot {
         clientOrderId,
         tradingPair: symbol,
         side,
-        orderType: 'LIMIT',
+        orderType: "LIMIT",
         price: roundedPrice,
         quantity: roundedQuantity,
         filledQuantity: 0,
-        status: 'NEW',
+        status: "NEW",
         gridLevel,
         createdAt: new Date(),
       };
 
       logger.info(
-        { orderId: simulatedOrder.orderId, symbol, side, price: roundedPrice, quantity: roundedQuantity },
-        '[SIMULATION] Order placed'
+        {
+          orderId: simulatedOrder.orderId,
+          symbol,
+          side,
+          price: roundedPrice,
+          quantity: roundedQuantity,
+        },
+        "[SIMULATION] Order placed",
       );
 
       return simulatedOrder;
     }
 
     try {
-      const result = await this.client['client'].submitNewOrder({
+      const result = await this.client["client"].submitNewOrder({
         symbol,
-        side: side as 'BUY' | 'SELL',
-        type: 'LIMIT',
-        timeInForce: 'GTC',
+        side: side as "BUY" | "SELL",
+        type: "LIMIT",
+        timeInForce: "GTC",
         price: roundedPrice,
         quantity: roundedQuantity,
         newClientOrderId: clientOrderId,
@@ -994,12 +1094,15 @@ export class PortfolioGridBot {
         price: parseFloat(String(orderResult.price)),
         quantity: parseFloat(String(orderResult.origQty)),
         filledQuantity: parseFloat(String(orderResult.executedQty)),
-        status: orderResult.status as Order['status'],
+        status: orderResult.status as Order["status"],
         gridLevel,
         createdAt: new Date(orderResult.transactTime),
       };
     } catch (error) {
-      logger.error({ error, symbol, side, price, quantity }, 'Failed to place order');
+      logger.error(
+        { error, symbol, side, price, quantity },
+        "Failed to place order",
+      );
       return null;
     }
   }
@@ -1050,7 +1153,8 @@ export class PortfolioGridBot {
         gridLevels: pairBot.gridLevels,
         activeOrders: pairBot.activeOrders.size,
         positionSize: pairBot.positionSize,
-        positionValue: pairBot.positionValue + pairBot.positionSize * pairBot.currentPrice,
+        positionValue:
+          pairBot.positionValue + pairBot.positionSize * pairBot.currentPrice,
         realizedPnl: pairBot.realizedPnl,
         unrealizedPnl: pairBot.unrealizedPnl,
         tradesCount: pairBot.tradesCount,
@@ -1073,7 +1177,8 @@ export class PortfolioGridBot {
     };
 
     // Now calculate risk metrics using the partial state
-    partialState.riskMetrics = this.riskManager.calculateRiskMetrics(partialState);
+    partialState.riskMetrics =
+      this.riskManager.calculateRiskMetrics(partialState);
 
     return partialState;
   }
@@ -1090,7 +1195,8 @@ export class PortfolioGridBot {
         gridLevels: pairBot.gridLevels,
         activeOrders: pairBot.activeOrders.size,
         positionSize: pairBot.positionSize,
-        positionValue: pairBot.positionValue + pairBot.positionSize * pairBot.currentPrice,
+        positionValue:
+          pairBot.positionValue + pairBot.positionSize * pairBot.currentPrice,
         realizedPnl: pairBot.realizedPnl,
         unrealizedPnl: pairBot.unrealizedPnl,
         tradesCount: pairBot.tradesCount,
@@ -1116,14 +1222,26 @@ export class PortfolioGridBot {
 
   getStatus(): {
     status: PortfolioStatus;
-    pairs: { symbol: string; status: string; price: number; pnl: number; trades: number }[];
+    pairs: {
+      symbol: string;
+      status: string;
+      price: number;
+      pnl: number;
+      trades: number;
+    }[];
     totalPnl: number;
     totalTrades: number;
     uptime: number;
-    riskStatus: ReturnType<PortfolioRiskManager['getStatus']>;
-    dataFeed: { type: 'websocket' | 'polling'; connected: boolean };
+    riskStatus: ReturnType<PortfolioRiskManager["getStatus"]>;
+    dataFeed: { type: "websocket" | "polling"; connected: boolean };
   } {
-    const pairStatuses: { symbol: string; status: string; price: number; pnl: number; trades: number }[] = [];
+    const pairStatuses: {
+      symbol: string;
+      status: string;
+      price: number;
+      pnl: number;
+      trades: number;
+    }[] = [];
     let totalPnl = 0;
     let totalTrades = 0;
 
@@ -1145,10 +1263,12 @@ export class PortfolioGridBot {
       pairs: pairStatuses,
       totalPnl,
       totalTrades,
-      uptime: this.startTime ? Math.floor((Date.now() - this.startTime.getTime()) / 1000) : 0,
+      uptime: this.startTime
+        ? Math.floor((Date.now() - this.startTime.getTime()) / 1000)
+        : 0,
       riskStatus: this.riskManager.getStatus(),
       dataFeed: {
-        type: this.useWebSocket ? 'websocket' : 'polling',
+        type: this.useWebSocket ? "websocket" : "polling",
         connected: this.useWebSocket ? this.wsConnected : true,
       },
     };
@@ -1176,16 +1296,19 @@ export class PortfolioGridBot {
     const corrCheck = correlationAnalyzer.wouldHurtDiversification(
       existingPairs,
       config.symbol,
-      this.riskManager.getLimits().maxCorrelation
+      this.riskManager.getLimits().maxCorrelation,
     );
 
     if (corrCheck.wouldHurt) {
-      logger.warn({ symbol: config.symbol, reason: corrCheck.reason }, 'Adding highly correlated pair');
+      logger.warn(
+        { symbol: config.symbol, reason: corrCheck.reason },
+        "Adding highly correlated pair",
+      );
     }
 
-    await this.initializePairBot(config);
+    this.initializePairBot(config);
 
-    if (this.status === 'running') {
+    if (this.status === "running") {
       const pairBot = this.pairBots.get(config.symbol);
       if (pairBot) {
         await this.startPairBot(config.symbol, pairBot);
@@ -1206,7 +1329,7 @@ export class PortfolioGridBot {
     this.allocatedCapital -= pairBot.positionValue;
 
     this.pairBots.delete(symbol);
-    logger.info({ symbol }, 'Pair removed from portfolio');
+    logger.info({ symbol }, "Pair removed from portfolio");
   }
 
   updateRiskStrategy(strategy: RiskStrategy): void {

@@ -1,11 +1,12 @@
 #!/usr/bin/env sh
-# FAST VERSION: Only lint and typecheck, skip tests
-# To use: cp .husky/pre-commit.fast .husky/pre-commit
-
+# FAST VERSION: Lint staged files + full lint + typecheck
 . "$(dirname -- "$0")/_/husky.sh"
 
-# Run lint-staged for file-specific checks
+# Run lint-staged for file-specific fixes on changed files
 npx lint-staged
+
+# Run full linting on entire src directory (catches errors in unchanged files)
+npm run lint
 
 # Run full typecheck (fast, catches global type errors)
 npm run typecheck

@@ -1,9 +1,10 @@
-import { Request, Response, NextFunction } from 'express';
-import { CognitoJwtVerifier } from 'aws-jwt-verify';
-import logger from '../utils/logger.js';
+import { Request, Response, NextFunction } from "express";
+import { CognitoJwtVerifier } from "aws-jwt-verify";
+import logger from "../utils/logger.js";
 
 // Extend Express Request to include user info
 declare global {
+  // eslint-disable-next-line @typescript-eslint/no-namespace
   namespace Express {
     interface Request {
       user?: {
@@ -16,28 +17,31 @@ declare global {
 }
 
 // Create verifier for Cognito access tokens
-let accessTokenVerifier: ReturnType<typeof CognitoJwtVerifier.create> | null = null;
+let accessTokenVerifier: ReturnType<typeof CognitoJwtVerifier.create> | null =
+  null;
 
 /**
  * Initialize the Cognito JWT verifier
  * Must be called before using the auth middleware
  */
-export function initCognitoVerifier(userPoolId: string, clientId: string): void {
+export function initCognitoVerifier(
+  userPoolId: string,
+  clientId: string,
+): void {
   if (!userPoolId || !clientId) {
-    logger.warn('Cognito User Pool ID or Client ID not provided. Authentication will be disabled.');
+    logger.warn(
+      "Cognito User Pool ID or Client ID not provided. Authentication will be disabled.",
+    );
     return;
   }
 
   accessTokenVerifier = CognitoJwtVerifier.create({
     userPoolId,
-    tokenUse: 'access',
+    tokenUse: "access",
     clientId,
   });
 
-  logger.info(
-    { userPoolId, clientId },
-    'Cognito JWT verifier initialized'
-  );
+  logger.info({ userPoolId, clientId }, "Cognito JWT verifier initialized");
 }
 
 /**
@@ -47,11 +51,11 @@ export function initCognitoVerifier(userPoolId: string, clientId: string): void 
 export async function authenticateToken(
   req: Request,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ): Promise<void> {
   // Skip authentication if verifier not initialized (local dev mode)
   if (!accessTokenVerifier) {
-    logger.debug('Cognito verifier not initialized, skipping authentication');
+    logger.debug("Cognito verifier not initialized, skipping authentication");
     next();
     return;
   }
@@ -60,14 +64,14 @@ export async function authenticateToken(
     // Extract token from Authorization header
     const authHeader = req.headers.authorization;
     if (!authHeader) {
-      logger.debug({ path: req.path }, 'No Authorization header provided');
-      res.status(401).json({ error: 'No authorization token provided' });
+      logger.debug({ path: req.path }, "No Authorization header provided");
+      res.status(401).json({ error: "No authorization token provided" });
       return;
     }
 
-    if (!authHeader.startsWith('Bearer ')) {
-      logger.debug({ authHeader }, 'Invalid Authorization header format');
-      res.status(401).json({ error: 'Invalid authorization header format' });
+    if (!authHeader.startsWith("Bearer ")) {
+      logger.debug({ authHeader }, "Invalid Authorization header format");
+      res.status(401).json({ error: "Invalid authorization header format" });
       return;
     }
 
@@ -78,12 +82,12 @@ export async function authenticateToken(
 
     logger.debug(
       { sub: payload.sub, username: payload.username },
-      'Token verified successfully'
+      "Token verified successfully",
     );
 
     // Attach user info to request object
     req.user = {
-      sub: payload.sub as string,
+      sub: payload.sub,
       email: payload.email as string | undefined,
       username: payload.username as string | undefined,
     };
@@ -93,22 +97,22 @@ export async function authenticateToken(
     if (error instanceof Error) {
       logger.warn(
         { error: error.message, path: req.path },
-        'Token verification failed'
+        "Token verification failed",
       );
 
       // Provide specific error messages for common issues
-      if (error.message.includes('expired')) {
-        res.status(401).json({ error: 'Token expired' });
+      if (error.message.includes("expired")) {
+        res.status(401).json({ error: "Token expired" });
         return;
       }
 
-      if (error.message.includes('invalid')) {
-        res.status(401).json({ error: 'Invalid token' });
+      if (error.message.includes("invalid")) {
+        res.status(401).json({ error: "Invalid token" });
         return;
       }
     }
 
-    res.status(401).json({ error: 'Authentication failed' });
+    res.status(401).json({ error: "Authentication failed" });
   }
 }
 
@@ -119,7 +123,7 @@ export async function authenticateToken(
 export async function optionalAuth(
   req: Request,
   _res: Response,
-  next: NextFunction
+  next: NextFunction,
 ): Promise<void> {
   if (!accessTokenVerifier) {
     next();
@@ -127,7 +131,7 @@ export async function optionalAuth(
   }
 
   const authHeader = req.headers.authorization;
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
     // No token provided, continue without user info
     next();
     return;
@@ -138,15 +142,18 @@ export async function optionalAuth(
     const payload = await accessTokenVerifier.verify(token);
 
     req.user = {
-      sub: payload.sub as string,
+      sub: payload.sub,
       email: payload.email as string | undefined,
       username: payload.username as string | undefined,
     };
 
-    logger.debug({ sub: payload.sub }, 'Optional auth: user authenticated');
+    logger.debug({ sub: payload.sub }, "Optional auth: user authenticated");
   } catch (error) {
     // Token invalid, but we don't block the request
-    logger.debug({ error }, 'Optional auth: token verification failed, continuing without auth');
+    logger.debug(
+      { error },
+      "Optional auth: token verification failed, continuing without auth",
+    );
   }
 
   next();

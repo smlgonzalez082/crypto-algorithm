@@ -1,12 +1,12 @@
-import { createLogger } from '../utils/logger.js';
+import { createLogger } from "../utils/logger.js";
 import type {
   CorrelationMatrix,
   PairCorrelation,
   PriceHistory,
   VolatilityData,
-} from '../types/portfolio.js';
+} from "../types/portfolio.js";
 
-const logger = createLogger('correlation');
+const logger = createLogger("correlation");
 
 /**
  * Calculates Pearson correlation coefficient between two arrays of returns
@@ -58,7 +58,8 @@ function standardDeviation(values: number[]): number {
   if (values.length < 2) return 0;
   const mean = values.reduce((a, b) => a + b, 0) / values.length;
   const squaredDiffs = values.map((v) => Math.pow(v - mean, 2));
-  const variance = squaredDiffs.reduce((a, b) => a + b, 0) / (values.length - 1);
+  const variance =
+    squaredDiffs.reduce((a, b) => a + b, 0) / (values.length - 1);
   return Math.sqrt(variance);
 }
 
@@ -66,14 +67,14 @@ function standardDeviation(values: number[]): number {
  * Interprets correlation strength
  */
 function interpretCorrelation(
-  correlation: number
-): 'negative' | 'weak' | 'moderate' | 'strong' | 'very_strong' {
+  correlation: number,
+): "negative" | "weak" | "moderate" | "strong" | "very_strong" {
   const abs = Math.abs(correlation);
-  if (correlation < -0.3) return 'negative';
-  if (abs < 0.3) return 'weak';
-  if (abs < 0.5) return 'moderate';
-  if (abs < 0.7) return 'strong';
-  return 'very_strong';
+  if (correlation < -0.3) return "negative";
+  if (abs < 0.3) return "weak";
+  if (abs < 0.5) return "moderate";
+  if (abs < 0.7) return "strong";
+  return "very_strong";
 }
 
 export class CorrelationAnalyzer {
@@ -84,7 +85,10 @@ export class CorrelationAnalyzer {
   /**
    * Updates price history for a symbol
    */
-  updatePriceHistory(symbol: string, prices: { timestamp: number; close: number }[]): void {
+  updatePriceHistory(
+    symbol: string,
+    prices: { timestamp: number; close: number }[],
+  ): void {
     const returns = calculateReturns(prices.map((p) => p.close));
     this.priceHistories.set(symbol, { symbol, prices, returns });
 
@@ -121,14 +125,20 @@ export class CorrelationAnalyzer {
     const history2 = this.priceHistories.get(symbol2);
 
     if (!history1 || !history2) {
-      logger.warn({ symbol1, symbol2 }, 'Missing price history for correlation calculation');
+      logger.warn(
+        { symbol1, symbol2 },
+        "Missing price history for correlation calculation",
+      );
       return null;
     }
 
     // Align returns by using minimum length
     const minLen = Math.min(history1.returns.length, history2.returns.length);
     if (minLen < 10) {
-      logger.warn({ symbol1, symbol2, minLen }, 'Insufficient data for correlation');
+      logger.warn(
+        { symbol1, symbol2, minLen },
+        "Insufficient data for correlation",
+      );
       return null;
     }
 
@@ -151,9 +161,9 @@ export class CorrelationAnalyzer {
   buildCorrelationMatrix(): CorrelationMatrix {
     const pairs = Array.from(this.priceHistories.keys());
     const n = pairs.length;
-    const matrix: number[][] = Array(n)
-      .fill(null)
-      .map(() => Array(n).fill(0));
+    const matrix: number[][] = Array.from({ length: n }, () =>
+      Array.from({ length: n }, () => 0),
+    );
 
     for (let i = 0; i < n; i++) {
       matrix[i][i] = 1; // Perfect correlation with self
@@ -200,7 +210,7 @@ export class CorrelationAnalyzer {
    */
   findLeastCorrelatedPairs(
     symbols: string[],
-    maxCorrelation: number = 0.5
+    maxCorrelation: number = 0.5,
   ): { pair1: string; pair2: string; correlation: number }[] {
     const results: { pair1: string; pair2: string; correlation: number }[] = [];
 
@@ -218,7 +228,9 @@ export class CorrelationAnalyzer {
     }
 
     // Sort by absolute correlation (lowest first = best diversification)
-    return results.sort((a, b) => Math.abs(a.correlation) - Math.abs(b.correlation));
+    return results.sort(
+      (a, b) => Math.abs(a.correlation) - Math.abs(b.correlation),
+    );
   }
 
   /**
@@ -240,7 +252,8 @@ export class CorrelationAnalyzer {
 
     if (correlations.length === 0) return 0.5; // Neutral if no data
 
-    const avgCorrelation = correlations.reduce((a, b) => a + b, 0) / correlations.length;
+    const avgCorrelation =
+      correlations.reduce((a, b) => a + b, 0) / correlations.length;
 
     // Convert to diversification score: 1 = perfectly uncorrelated, 0 = perfectly correlated
     return 1 - avgCorrelation;
@@ -252,15 +265,18 @@ export class CorrelationAnalyzer {
    */
   suggestAllocation(
     symbols: string[],
-    totalCapital: number
+    totalCapital: number,
   ): Map<string, { allocation: number; reason: string }> {
-    const allocations = new Map<string, { allocation: number; reason: string }>();
+    const allocations = new Map<
+      string,
+      { allocation: number; reason: string }
+    >();
 
     if (symbols.length === 0) return allocations;
     if (symbols.length === 1) {
       allocations.set(symbols[0], {
         allocation: totalCapital,
-        reason: 'Single asset - full allocation',
+        reason: "Single asset - full allocation",
       });
       return allocations;
     }
@@ -304,7 +320,7 @@ export class CorrelationAnalyzer {
   wouldHurtDiversification(
     currentPairs: string[],
     newPair: string,
-    maxCorrelation: number = 0.7
+    maxCorrelation: number = 0.7,
   ): { wouldHurt: boolean; reason: string; correlations: PairCorrelation[] } {
     const correlations: PairCorrelation[] = [];
 
@@ -324,7 +340,7 @@ export class CorrelationAnalyzer {
 
     return {
       wouldHurt: false,
-      reason: 'Acceptable correlation levels',
+      reason: "Acceptable correlation levels",
       correlations,
     };
   }
@@ -358,8 +374,8 @@ export class CorrelationAnalyzer {
 
     let totalCorr = 0;
     let count = 0;
-    let maxCorr = { pair1: '', pair2: '', value: -2 };
-    let minCorr = { pair1: '', pair2: '', value: 2 };
+    let maxCorr = { pair1: "", pair2: "", value: -2 };
+    let minCorr = { pair1: "", pair2: "", value: 2 };
 
     for (let i = 0; i < pairs.length; i++) {
       for (let j = i + 1; j < pairs.length; j++) {

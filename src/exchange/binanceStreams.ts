@@ -1,9 +1,9 @@
-import Binance from 'binance';
-import { config } from '../utils/config.js';
-import { createLogger } from '../utils/logger.js';
-import type { Order, OrderSide, OrderStatus } from '../types/index.js';
+import Binance from "binance";
+import { config } from "../utils/config.js";
+import { createLogger } from "../utils/logger.js";
+import type { Order, OrderSide, OrderStatus } from "../types/index.js";
 
-const logger = createLogger('binance-streams');
+const logger = createLogger("binance-streams");
 
 export interface TickerData {
   symbol: string;
@@ -57,9 +57,9 @@ export class BinanceStreamManager {
   private initRestClient(): void {
     let baseUrl: string | undefined;
     if (config.binanceTestnet) {
-      baseUrl = 'https://testnet.binance.vision';
+      baseUrl = "https://testnet.binance.vision";
     } else if (config.binanceUs) {
-      baseUrl = 'https://api.binance.us';
+      baseUrl = "https://api.binance.us";
     }
 
     this.restClient = new Binance.MainClient({
@@ -72,18 +72,18 @@ export class BinanceStreamManager {
   /**
    * Connect to Binance WebSocket streams
    */
-  async connect(): Promise<void> {
+  connect(): void {
     if (this.isConnected) {
-      logger.warn('Already connected to Binance streams');
+      logger.warn("Already connected to Binance streams");
       return;
     }
 
     try {
       let wsBaseUrl: string | undefined;
       if (config.binanceTestnet) {
-        wsBaseUrl = 'wss://testnet.binance.vision';
+        wsBaseUrl = "wss://testnet.binance.vision";
       } else if (config.binanceUs) {
-        wsBaseUrl = 'wss://stream.binance.us:9443';
+        wsBaseUrl = "wss://stream.binance.us:9443";
       }
 
       this.wsClient = new Binance.WebsocketClient({
@@ -99,9 +99,12 @@ export class BinanceStreamManager {
       this.reconnectAttempts = 0;
       this.notifyConnectionStatus(true);
 
-      logger.info({ binanceUs: config.binanceUs }, 'Connected to Binance WebSocket streams');
+      logger.info(
+        { binanceUs: config.binanceUs },
+        "Connected to Binance WebSocket streams",
+      );
     } catch (error) {
-      logger.error({ error }, 'Failed to connect to Binance streams');
+      logger.error({ error }, "Failed to connect to Binance streams");
       this.handleReconnect();
       throw error;
     }
@@ -111,46 +114,52 @@ export class BinanceStreamManager {
     if (!this.wsClient) return;
 
     // Debug: log ALL events
-    this.wsClient.on('message', (data: unknown) => {
-      logger.debug({ data: JSON.stringify(data).substring(0, 200) }, 'Raw WebSocket message received');
+    this.wsClient.on("message", (data: unknown) => {
+      logger.debug(
+        { data: JSON.stringify(data).substring(0, 200) },
+        "Raw WebSocket message received",
+      );
       this.handleMessage(data);
     });
 
     // Handle ticker updates (24hr rolling window)
-    this.wsClient.on('formattedMessage', (data: unknown) => {
-      logger.debug({ data: JSON.stringify(data).substring(0, 200) }, 'Formatted WebSocket message received');
+    this.wsClient.on("formattedMessage", (data: unknown) => {
+      logger.debug(
+        { data: JSON.stringify(data).substring(0, 200) },
+        "Formatted WebSocket message received",
+      );
       this.handleMessage(data);
     });
 
     // Handle user data messages (order updates)
-    this.wsClient.on('formattedUserDataMessage', (data: unknown) => {
+    this.wsClient.on("formattedUserDataMessage", (data: unknown) => {
       this.handleUserDataMessage(data);
     });
 
     // Handle connection open
-    this.wsClient.on('open', (data: { wsKey: string }) => {
-      logger.info({ wsKey: data.wsKey }, 'WebSocket connection opened');
+    this.wsClient.on("open", (data: { wsKey: string }) => {
+      logger.info({ wsKey: data.wsKey }, "WebSocket connection opened");
     });
 
     // Handle errors
-    this.wsClient.on('error', (error) => {
-      logger.error({ error }, 'WebSocket error');
+    this.wsClient.on("error", (error) => {
+      logger.error({ error }, "WebSocket error");
     });
 
     // Handle reconnection
-    this.wsClient.on('reconnecting', (data: { wsKey: string }) => {
-      logger.warn({ wsKey: data.wsKey }, 'WebSocket reconnecting');
+    this.wsClient.on("reconnecting", (data: { wsKey: string }) => {
+      logger.warn({ wsKey: data.wsKey }, "WebSocket reconnecting");
       this.notifyConnectionStatus(false);
     });
 
-    this.wsClient.on('reconnected', (data: { wsKey: string }) => {
-      logger.info({ wsKey: data.wsKey }, 'WebSocket reconnected');
+    this.wsClient.on("reconnected", (data: { wsKey: string }) => {
+      logger.info({ wsKey: data.wsKey }, "WebSocket reconnected");
       this.notifyConnectionStatus(true);
     });
 
     // Handle close
-    this.wsClient.on('close', () => {
-      logger.warn('WebSocket connection closed');
+    this.wsClient.on("close", () => {
+      logger.warn("WebSocket connection closed");
       this.isConnected = false;
       this.notifyConnectionStatus(false);
     });
@@ -176,18 +185,28 @@ export class BinanceStreamManager {
     };
 
     // Debug: log all messages to see what we're receiving
-    logger.debug({ eventType: msg.eventType, symbol: msg.symbol, hasPrice: !!msg.close || !!msg.lastPrice }, 'WebSocket message received');
+    logger.debug(
+      {
+        eventType: msg.eventType,
+        symbol: msg.symbol,
+        hasPrice: !!msg.close || !!msg.lastPrice,
+      },
+      "WebSocket message received",
+    );
 
     // Handle mini ticker (24hrMiniTicker) or 24hr ticker
-    if ((msg.eventType === '24hrMiniTicker' || msg.eventType === '24hrTicker') && msg.symbol) {
+    if (
+      (msg.eventType === "24hrMiniTicker" || msg.eventType === "24hrTicker") &&
+      msg.symbol
+    ) {
       const tickerData: TickerData = {
         symbol: msg.symbol,
-        price: parseFloat(msg.close || msg.lastPrice || '0'),
-        priceChange: parseFloat(msg.priceChange || '0'),
-        priceChangePercent: parseFloat(msg.priceChangePercent || '0'),
-        high: parseFloat(msg.high || '0'),
-        low: parseFloat(msg.low || '0'),
-        volume: parseFloat(msg.volume || '0'),
+        price: parseFloat(msg.close || msg.lastPrice || "0"),
+        priceChange: parseFloat(msg.priceChange || "0"),
+        priceChangePercent: parseFloat(msg.priceChangePercent || "0"),
+        high: parseFloat(msg.high || "0"),
+        low: parseFloat(msg.low || "0"),
+        volume: parseFloat(msg.volume || "0"),
         timestamp: msg.eventTime || Date.now(),
       };
 
@@ -196,18 +215,21 @@ export class BinanceStreamManager {
         try {
           callback(tickerData);
         } catch (error) {
-          logger.error({ error, symbol: msg.symbol }, 'Error in ticker callback');
+          logger.error(
+            { error, symbol: msg.symbol },
+            "Error in ticker callback",
+          );
         }
       }
     }
 
     // Handle individual trades
-    if (msg.eventType === 'trade' && msg.symbol) {
+    if (msg.eventType === "trade" && msg.symbol) {
       const tradeData: TradeData = {
         symbol: msg.symbol,
-        tradeId: String(msg.tradeId || ''),
-        price: parseFloat(msg.price || '0'),
-        quantity: parseFloat(msg.quantity || '0'),
+        tradeId: String(msg.tradeId || ""),
+        price: parseFloat(msg.price || "0"),
+        quantity: parseFloat(msg.quantity || "0"),
         buyerMaker: msg.buyerMaker || false,
         timestamp: msg.eventTime || Date.now(),
       };
@@ -217,7 +239,10 @@ export class BinanceStreamManager {
         try {
           callback(tradeData);
         } catch (error) {
-          logger.error({ error, symbol: msg.symbol }, 'Error in trade callback');
+          logger.error(
+            { error, symbol: msg.symbol },
+            "Error in trade callback",
+          );
         }
       }
     }
@@ -239,36 +264,38 @@ export class BinanceStreamManager {
       eventTime?: number;
     };
 
-    if (msg.eventType === 'executionReport') {
+    if (msg.eventType === "executionReport") {
       const order: Order = {
-        orderId: String(msg.orderId || ''),
+        orderId: String(msg.orderId || ""),
         clientOrderId: msg.newClientOrderId,
-        tradingPair: msg.symbol || '',
-        side: (msg.side as OrderSide) || 'BUY',
-        orderType: msg.orderType || 'LIMIT',
-        price: parseFloat(msg.price || '0'),
-        quantity: parseFloat(msg.quantity || '0'),
-        filledQuantity: parseFloat(msg.cumulativeFilledQuantity || msg.lastFilledQuantity || '0'),
-        status: (msg.orderStatus as OrderStatus) || 'NEW',
-        gridLevel: this.extractGridLevel(msg.newClientOrderId || ''),
+        tradingPair: msg.symbol || "",
+        side: (msg.side as OrderSide) || "BUY",
+        orderType: msg.orderType || "LIMIT",
+        price: parseFloat(msg.price || "0"),
+        quantity: parseFloat(msg.quantity || "0"),
+        filledQuantity: parseFloat(
+          msg.cumulativeFilledQuantity || msg.lastFilledQuantity || "0",
+        ),
+        status: (msg.orderStatus as OrderStatus) || "NEW",
+        gridLevel: this.extractGridLevel(msg.newClientOrderId || ""),
         createdAt: new Date(msg.eventTime || Date.now()),
       };
 
-      logger.debug({ order }, 'Order update received via WebSocket');
+      logger.debug({ order }, "Order update received via WebSocket");
 
       for (const callback of this.orderCallbacks) {
         try {
           callback(order);
         } catch (error) {
-          logger.error({ error }, 'Error in order callback');
+          logger.error({ error }, "Error in order callback");
         }
       }
     }
   }
 
   private extractGridLevel(clientOrderId: string): number | undefined {
-    if (clientOrderId?.startsWith('grid_')) {
-      const parts = clientOrderId.split('_');
+    if (clientOrderId?.startsWith("grid_")) {
+      const parts = clientOrderId.split("_");
       if (parts.length >= 2) {
         const level = parseInt(parts[1], 10);
         if (!isNaN(level)) return level;
@@ -279,29 +306,34 @@ export class BinanceStreamManager {
 
   private handleReconnect(): void {
     if (this.reconnectAttempts >= this.maxReconnectAttempts) {
-      logger.error('Max reconnection attempts reached');
+      logger.error("Max reconnection attempts reached");
       return;
     }
 
     this.reconnectAttempts++;
     const delay = this.reconnectDelay * Math.pow(2, this.reconnectAttempts - 1);
 
-    logger.info({ attempt: this.reconnectAttempts, delay }, 'Attempting to reconnect');
+    logger.info(
+      { attempt: this.reconnectAttempts, delay },
+      "Attempting to reconnect",
+    );
 
-    setTimeout(async () => {
-      try {
-        await this.connect();
-        // Re-subscribe to all symbols
-        for (const symbol of this.subscribedSymbols) {
-          this.subscribeToTicker(symbol);
+    setTimeout(() => {
+      void (async () => {
+        try {
+          this.connect();
+          // Re-subscribe to all symbols
+          for (const symbol of this.subscribedSymbols) {
+            this.subscribeToTicker(symbol);
+          }
+          // Re-start user stream if it was active
+          if (this.userStreamListenKey) {
+            await this.startUserDataStream();
+          }
+        } catch (error) {
+          logger.error({ error }, "Reconnection failed");
         }
-        // Re-start user stream if it was active
-        if (this.userStreamListenKey) {
-          await this.startUserDataStream();
-        }
-      } catch (error) {
-        logger.error({ error }, 'Reconnection failed');
-      }
+      })();
     }, delay);
   }
 
@@ -310,7 +342,7 @@ export class BinanceStreamManager {
       try {
         callback(connected);
       } catch (error) {
-        logger.error({ error }, 'Error in connection callback');
+        logger.error({ error }, "Error in connection callback");
       }
     }
   }
@@ -320,19 +352,19 @@ export class BinanceStreamManager {
    */
   subscribeToTicker(symbol: string): void {
     if (!this.wsClient) {
-      logger.warn('WebSocket not connected, cannot subscribe to ticker');
+      logger.warn("WebSocket not connected, cannot subscribe to ticker");
       return;
     }
 
     if (this.subscribedSymbols.has(symbol)) {
-      logger.debug({ symbol }, 'Already subscribed to ticker');
+      logger.debug({ symbol }, "Already subscribed to ticker");
       return;
     }
 
     // Use mini ticker for individual symbol price updates (more reliable for Binance.US)
     this.wsClient.subscribeSpotSymbolMini24hrTicker(symbol);
     this.subscribedSymbols.add(symbol);
-    logger.info({ symbol }, 'Subscribed to mini ticker stream');
+    logger.info({ symbol }, "Subscribed to mini ticker stream");
   }
 
   /**
@@ -340,12 +372,12 @@ export class BinanceStreamManager {
    */
   subscribeToTrades(symbol: string): void {
     if (!this.wsClient) {
-      logger.warn('WebSocket not connected, cannot subscribe to trades');
+      logger.warn("WebSocket not connected, cannot subscribe to trades");
       return;
     }
 
     this.wsClient.subscribeSpotTrades(symbol);
-    logger.info({ symbol }, 'Subscribed to trade stream');
+    logger.info({ symbol }, "Subscribed to trade stream");
   }
 
   /**
@@ -358,7 +390,7 @@ export class BinanceStreamManager {
     // In production, you might need to close and reopen with new subscriptions
     this.subscribedSymbols.delete(symbol);
     this.tickerCallbacks.delete(symbol);
-    logger.info({ symbol }, 'Unsubscribed from ticker stream');
+    logger.info({ symbol }, "Unsubscribed from ticker stream");
   }
 
   /**
@@ -366,7 +398,7 @@ export class BinanceStreamManager {
    */
   async startUserDataStream(): Promise<void> {
     if (!this.wsClient || !this.restClient) {
-      logger.warn('WebSocket or REST client not connected');
+      logger.warn("WebSocket or REST client not connected");
       return;
     }
 
@@ -376,14 +408,14 @@ export class BinanceStreamManager {
       this.userStreamListenKey = response.listenKey;
 
       // Subscribe to user data stream
-      this.wsClient.subscribeSpotUserDataStream();
+      void this.wsClient.subscribeSpotUserDataStream();
 
       // Keep the listen key alive (must be done every 30 minutes)
       this.startListenKeyKeepAlive();
 
-      logger.info('User data stream started');
+      logger.info("User data stream started");
     } catch (error) {
-      logger.error({ error }, 'Failed to start user data stream');
+      logger.error({ error }, "Failed to start user data stream");
       throw error;
     }
   }
@@ -395,23 +427,30 @@ export class BinanceStreamManager {
     }
 
     // Keep alive every 25 minutes (before the 30 min expiry)
-    this.userStreamKeepAliveInterval = setInterval(async () => {
-      if (!this.restClient || !this.userStreamListenKey) return;
+    this.userStreamKeepAliveInterval = setInterval(
+      () => {
+        void (async () => {
+          if (!this.restClient || !this.userStreamListenKey) return;
 
-      try {
-        await this.restClient.keepAliveSpotUserDataListenKey(this.userStreamListenKey);
-        logger.debug('User data stream listen key kept alive');
-      } catch (error) {
-        logger.error({ error }, 'Failed to keep alive listen key');
-        // Try to get a new listen key
-        try {
-          const response = await this.restClient.getSpotUserDataListenKey();
-          this.userStreamListenKey = response.listenKey;
-        } catch (e) {
-          logger.error({ error: e }, 'Failed to get new listen key');
-        }
-      }
-    }, 25 * 60 * 1000); // 25 minutes
+          try {
+            await this.restClient.keepAliveSpotUserDataListenKey(
+              this.userStreamListenKey,
+            );
+            logger.debug("User data stream listen key kept alive");
+          } catch (error) {
+            logger.error({ error }, "Failed to keep alive listen key");
+            // Try to get a new listen key
+            try {
+              const response = await this.restClient.getSpotUserDataListenKey();
+              this.userStreamListenKey = response.listenKey;
+            } catch (e) {
+              logger.error({ error: e }, "Failed to get new listen key");
+            }
+          }
+        })();
+      },
+      25 * 60 * 1000,
+    ); // 25 minutes
   }
 
   /**
@@ -457,7 +496,7 @@ export class BinanceStreamManager {
   /**
    * Disconnect from all WebSocket streams
    */
-  async disconnect(): Promise<void> {
+  disconnect(): void {
     if (this.userStreamKeepAliveInterval) {
       clearInterval(this.userStreamKeepAliveInterval);
       this.userStreamKeepAliveInterval = null;
@@ -475,7 +514,7 @@ export class BinanceStreamManager {
     this.isConnected = false;
     this.userStreamListenKey = null;
 
-    logger.info('Disconnected from Binance streams');
+    logger.info("Disconnected from Binance streams");
   }
 
   /**

@@ -1,10 +1,15 @@
-import { createLogger } from '../utils/logger.js';
-import { config, getGridLevels } from '../utils/config.js';
-import { BinanceClient } from '../exchange/binance.js';
-import { RiskManager } from './risk.js';
-import type { GridConfig, Order, BotStatus, GridLevel } from '../types/index.js';
+import { createLogger } from "../utils/logger.js";
+import { config, getGridLevels } from "../utils/config.js";
+import { BinanceClient } from "../exchange/binance.js";
+import { RiskManager } from "./risk.js";
+import type {
+  GridConfig,
+  Order,
+  BotStatus,
+  GridLevel,
+} from "../types/index.js";
 
-const logger = createLogger('grid');
+const logger = createLogger("grid");
 
 export class GridBot {
   private client: BinanceClient;
@@ -12,7 +17,7 @@ export class GridBot {
   private gridConfig: GridConfig;
   private gridLevels: GridLevel[] = [];
   private activeOrders: Map<string, Order> = new Map();
-  private status: BotStatus = 'stopped';
+  private status: BotStatus = "stopped";
   private currentPrice = 0;
   private totalPnl = 0;
   private tradesCount = 0;
@@ -32,14 +37,14 @@ export class GridBot {
   }
 
   async start(): Promise<void> {
-    if (this.status === 'running') {
-      logger.warn('Bot is already running');
+    if (this.status === "running") {
+      logger.warn("Bot is already running");
       return;
     }
 
     try {
-      logger.info('Starting grid bot...');
-      this.status = 'starting';
+      logger.info("Starting grid bot...");
+      this.status = "starting";
 
       // Connect to exchange
       await this.client.connect();
@@ -50,7 +55,7 @@ export class GridBot {
 
       // Get current price
       this.currentPrice = await this.client.getCurrentPrice();
-      logger.info({ currentPrice: this.currentPrice }, 'Current price fetched');
+      logger.info({ currentPrice: this.currentPrice }, "Current price fetched");
 
       // Initialize grid levels
       this.initializeGridLevels();
@@ -59,45 +64,47 @@ export class GridBot {
       await this.placeInitialOrders();
 
       // Start price stream
-      await this.client.startPriceStream();
+      this.client.startPriceStream();
       this.client.onPriceUpdate((price) => this.handlePriceUpdate(price));
 
       // Start user stream for order updates
-      await this.client.startUserStream();
-      this.client.onOrderUpdate((order) => this.handleOrderUpdate(order));
+      this.client.startUserStream();
+      this.client.onOrderUpdate((order) => {
+        void this.handleOrderUpdate(order);
+      });
 
-      this.status = 'running';
+      this.status = "running";
       this.startTime = new Date();
-      logger.info('Grid bot started successfully');
+      logger.info("Grid bot started successfully");
     } catch (error) {
-      this.status = 'error';
-      logger.error({ error }, 'Failed to start grid bot');
+      this.status = "error";
+      logger.error({ error }, "Failed to start grid bot");
       throw error;
     }
   }
 
   async stop(): Promise<void> {
-    if (this.status === 'stopped') {
-      logger.warn('Bot is already stopped');
+    if (this.status === "stopped") {
+      logger.warn("Bot is already stopped");
       return;
     }
 
     try {
-      logger.info('Stopping grid bot...');
-      this.status = 'stopping';
+      logger.info("Stopping grid bot...");
+      this.status = "stopping";
 
       // Cancel all open orders
       await this.client.cancelAllOrders();
       this.activeOrders.clear();
 
       // Disconnect from exchange
-      await this.client.disconnect();
+      this.client.disconnect();
 
-      this.status = 'stopped';
-      logger.info('Grid bot stopped');
+      this.status = "stopped";
+      logger.info("Grid bot stopped");
     } catch (error) {
-      this.status = 'error';
-      logger.error({ error }, 'Error stopping grid bot');
+      this.status = "error";
+      logger.error({ error }, "Error stopping grid bot");
       throw error;
     }
   }
@@ -109,12 +116,12 @@ export class GridBot {
       price,
       buyOrderId: null,
       sellOrderId: null,
-      status: 'empty' as const,
+      status: "empty" as const,
     }));
 
     logger.info(
       { levelCount: this.gridLevels.length, prices },
-      'Grid levels initialized'
+      "Grid levels initialized",
     );
   }
 
@@ -137,7 +144,7 @@ export class GridBot {
         sellLevels: abovePrice.length,
         currentPrice: this.currentPrice,
       },
-      'Placing initial orders'
+      "Placing initial orders",
     );
 
     // Place buy orders below current price
@@ -153,69 +160,75 @@ export class GridBot {
 
   private async placeBuyOrder(level: GridLevel): Promise<void> {
     const check = this.riskManager.canPlaceOrder(
-      'BUY',
+      "BUY",
       this.gridConfig.amountPerGrid,
       level.price,
-      this.activeOrders.size
+      this.activeOrders.size,
     );
 
     if (!check.allowed) {
-      logger.warn({ level: level.level, reason: check.reason }, 'Buy order blocked by risk manager');
+      logger.warn(
+        { level: level.level, reason: check.reason },
+        "Buy order blocked by risk manager",
+      );
       return;
     }
 
     try {
       const order = await this.client.placeLimitOrder(
-        'BUY',
+        "BUY",
         level.price,
         this.gridConfig.amountPerGrid,
-        level.level
+        level.level,
       );
 
       level.buyOrderId = order.orderId;
-      level.status = 'buy_pending';
+      level.status = "buy_pending";
       this.activeOrders.set(order.orderId, order);
 
       logger.debug(
         { level: level.level, price: level.price, orderId: order.orderId },
-        'Buy order placed'
+        "Buy order placed",
       );
     } catch (error) {
-      logger.error({ error, level: level.level }, 'Failed to place buy order');
+      logger.error({ error, level: level.level }, "Failed to place buy order");
     }
   }
 
   private async placeSellOrder(level: GridLevel): Promise<void> {
     const check = this.riskManager.canPlaceOrder(
-      'SELL',
+      "SELL",
       this.gridConfig.amountPerGrid,
       level.price,
-      this.activeOrders.size
+      this.activeOrders.size,
     );
 
     if (!check.allowed) {
-      logger.warn({ level: level.level, reason: check.reason }, 'Sell order blocked by risk manager');
+      logger.warn(
+        { level: level.level, reason: check.reason },
+        "Sell order blocked by risk manager",
+      );
       return;
     }
 
     try {
       const order = await this.client.placeLimitOrder(
-        'SELL',
+        "SELL",
         level.price,
         this.gridConfig.amountPerGrid,
-        level.level
+        level.level,
       );
 
       level.sellOrderId = order.orderId;
-      level.status = 'sell_pending';
+      level.status = "sell_pending";
       this.activeOrders.set(order.orderId, order);
 
       logger.debug(
         { level: level.level, price: level.price, orderId: order.orderId },
-        'Sell order placed'
+        "Sell order placed",
       );
     } catch (error) {
-      logger.error({ error, level: level.level }, 'Failed to place sell order');
+      logger.error({ error, level: level.level }, "Failed to place sell order");
     }
   }
 
@@ -224,14 +237,14 @@ export class GridBot {
 
     // Check stop loss and take profit
     if (this.riskManager.checkStopLoss(price, this.gridConfig)) {
-      logger.warn('Stop loss triggered, stopping bot');
-      this.stop();
+      logger.warn("Stop loss triggered, stopping bot");
+      void this.stop();
       return;
     }
 
     if (this.riskManager.checkTakeProfit(price, this.gridConfig)) {
-      logger.info('Take profit triggered, stopping bot');
-      this.stop();
+      logger.info("Take profit triggered, stopping bot");
+      void this.stop();
       return;
     }
 
@@ -249,38 +262,43 @@ export class GridBot {
     this.activeOrders.set(order.orderId, order);
 
     // Handle filled orders
-    if (order.status === 'FILLED') {
+    if (order.status === "FILLED") {
       await this.handleFilledOrder(order);
-    } else if (order.status === 'CANCELED' || order.status === 'EXPIRED') {
+    } else if (order.status === "CANCELED" || order.status === "EXPIRED") {
       this.activeOrders.delete(order.orderId);
     }
   }
 
   private async handleFilledOrder(order: Order): Promise<void> {
     const level = this.gridLevels.find(
-      (l) => l.buyOrderId === order.orderId || l.sellOrderId === order.orderId
+      (l) => l.buyOrderId === order.orderId || l.sellOrderId === order.orderId,
     );
 
     if (!level) {
-      logger.warn({ orderId: order.orderId }, 'Filled order not found in grid levels');
+      logger.warn(
+        { orderId: order.orderId },
+        "Filled order not found in grid levels",
+      );
       return;
     }
 
     this.activeOrders.delete(order.orderId);
     this.tradesCount++;
 
-    if (order.side === 'BUY') {
+    if (order.side === "BUY") {
       // Buy order filled - place sell order at next level up
       logger.info(
         { level: level.level, price: order.price, quantity: order.quantity },
-        'Buy order filled'
+        "Buy order filled",
       );
 
       level.buyOrderId = null;
-      level.status = 'bought';
+      level.status = "bought";
 
       // Find next level up for sell order
-      const nextLevel = this.gridLevels.find((l) => l.level === level.level + 1);
+      const nextLevel = this.gridLevels.find(
+        (l) => l.level === level.level + 1,
+      );
       if (nextLevel && !nextLevel.sellOrderId) {
         await this.placeSellOrder(nextLevel);
       }
@@ -292,14 +310,16 @@ export class GridBot {
       // Sell order filled - place buy order at next level down
       logger.info(
         { level: level.level, price: order.price, quantity: order.quantity },
-        'Sell order filled'
+        "Sell order filled",
       );
 
       level.sellOrderId = null;
-      level.status = 'sold';
+      level.status = "sold";
 
       // Find next level down for buy order
-      const prevLevel = this.gridLevels.find((l) => l.level === level.level - 1);
+      const prevLevel = this.gridLevels.find(
+        (l) => l.level === level.level - 1,
+      );
       if (prevLevel && !prevLevel.buyOrderId) {
         await this.placeBuyOrder(prevLevel);
       }
@@ -347,12 +367,12 @@ export class GridBot {
     return Array.from(this.activeOrders.values());
   }
 
-  async updateConfig(newConfig: Partial<GridConfig>): Promise<void> {
-    if (this.status === 'running') {
-      throw new Error('Cannot update config while bot is running');
+  updateConfig(newConfig: Partial<GridConfig>): void {
+    if (this.status === "running") {
+      throw new Error("Cannot update config while bot is running");
     }
 
     this.gridConfig = { ...this.gridConfig, ...newConfig };
-    logger.info({ newConfig }, 'Grid config updated');
+    logger.info({ newConfig }, "Grid config updated");
   }
 }
