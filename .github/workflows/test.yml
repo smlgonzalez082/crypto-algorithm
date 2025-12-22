@@ -15,6 +15,7 @@ jobs:
   test-unit:
     name: Unit Tests
     runs-on: ubuntu-latest
+    timeout-minutes: 10
 
     strategy:
       matrix:
@@ -46,6 +47,7 @@ jobs:
   test-integration:
     name: Integration Tests
     runs-on: ubuntu-latest
+    timeout-minutes: 10
 
     steps:
       - uses: actions/checkout@v4
@@ -72,6 +74,7 @@ jobs:
   test-e2e:
     name: E2E Tests
     runs-on: ubuntu-latest
+    timeout-minutes: 15  # Kill if tests run longer than 15 minutes
 
     steps:
       - uses: actions/checkout@v4
