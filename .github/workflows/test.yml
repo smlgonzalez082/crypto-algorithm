@@ -7,6 +7,10 @@ on:
     branches: [ main, develop ]
   workflow_call:
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true  # Cancel previous runs on new push
+
 jobs:
   test-unit:
     name: Unit Tests

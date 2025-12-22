@@ -6,6 +6,10 @@ on:
       - main  # Deploy only from main branch
   workflow_dispatch:  # Allow manual trigger
 
+concurrency:
+  group: deploy-production
+  cancel-in-progress: true  # Automatically cancel previous runs
+
 env:
   AWS_REGION: us-east-1
   ECR_REPOSITORY: crypto-trading-bot-prod
