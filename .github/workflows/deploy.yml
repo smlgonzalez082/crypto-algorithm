@@ -119,34 +119,31 @@ jobs:
           echo "Logging into ECR registry: $REGISTRY"
           aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin $REGISTRY
 
-      - name: Build Docker image (classic build, no buildkit)
+      - name: Build Docker image locally (no tags yet)
         env:
           DOCKER_BUILDKIT: 0
         run: |
-          TAG1="${{ steps.aws-account.outputs.tag1 }}"
-          TAG2="${{ steps.aws-account.outputs.tag2 }}"
+          echo "Building Docker image WITHOUT tags to avoid auto-push"
+          docker build --build-arg NODE_ENV=production -t temp-build .
 
-          echo "Building image with DOCKER_BUILDKIT=0 (classic build)"
-          echo "Tags:"
-          echo "  $TAG1"
-          echo "  $TAG2"
-
-          docker build \
-            --build-arg NODE_ENV=production \
-            --tag "$TAG1" \
-            --tag "$TAG2" \
-            .
-
-      - name: Push Docker images
+      - name: Tag and push to ECR using AWS CLI
         run: |
-          TAG1="${{ steps.aws-account.outputs.tag1 }}"
-          TAG2="${{ steps.aws-account.outputs.tag2 }}"
+          ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+          REGISTRY="${ACCOUNT_ID}.dkr.ecr.us-east-1.amazonaws.com"
+          REPO="crypto-trading-bot-prod"
 
-          echo "Pushing: $TAG1"
-          docker push "$TAG1"
+          echo "Tagging image..."
+          docker tag temp-build "${REGISTRY}/${REPO}:${GITHUB_SHA}"
+          docker tag temp-build "${REGISTRY}/${REPO}:latest"
 
-          echo "Pushing: $TAG2"
-          docker push "$TAG2"
+          echo "Images after tagging:"
+          docker images | grep -E "(temp-build|crypto-trading-bot)"
+
+          echo "Pushing to ${REGISTRY}/${REPO}:${GITHUB_SHA}"
+          docker push "${REGISTRY}/${REPO}:${GITHUB_SHA}"
+
+          echo "Pushing to ${REGISTRY}/${REPO}:latest"
+          docker push "${REGISTRY}/${REPO}:latest"
 
   terraform-plan:
     name: Terraform Plan
