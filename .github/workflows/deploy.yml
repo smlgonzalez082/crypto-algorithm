@@ -38,22 +38,21 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Login to Amazon ECR
+      - name: Login to Amazon ECR (manual)
         id: login-ecr
-        uses: aws-actions/amazon-ecr-login@v2
-        with:
-          mask-password: 'true'
-        env:
-          AWS_DEFAULT_REGION: ${{ env.AWS_REGION }}
-
-      - name: Debug - Show ECR configuration
         run: |
-          echo "ECR Repository: ${{ env.ECR_REPOSITORY }}"
-          echo "AWS Region: ${{ env.AWS_REGION }}"
-          echo "AWS Default Region: $AWS_DEFAULT_REGION"
-          echo "Registry from login: ${{ steps.login-ecr.outputs.registry }}"
-          echo "AWS account: $(aws sts get-caller-identity --query Account --output text)"
-          echo "Expected registry: $(aws sts get-caller-identity --query Account --output text).dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com"
+          # Get account ID and construct registry URL
+          ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+          REGISTRY="${ACCOUNT_ID}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com"
+
+          echo "Logging into ECR registry: $REGISTRY"
+
+          # Get ECR login password and login to Docker
+          aws ecr get-login-password --region ${{ env.AWS_REGION }} | \
+            docker login --username AWS --password-stdin $REGISTRY
+
+          echo "registry=$REGISTRY" >> $GITHUB_OUTPUT
+          echo "Successfully logged into ECR in region ${{ env.AWS_REGION }}"
 
       - name: Create ECR repository if it doesn't exist
         run: |
