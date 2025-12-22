@@ -5,11 +5,11 @@ import { WebServer } from '../../src/web/server.js';
 // Mock Binance client
 jest.mock('../../src/exchange/binance.js', () => ({
   BinanceClient: jest.fn().mockImplementation(() => ({
-    connect: jest.fn().mockResolvedValue(undefined),
-    disconnect: jest.fn().mockResolvedValue(undefined),
-    getCurrentPrice: jest.fn().mockResolvedValue(0.14),
-    getBalance: jest.fn().mockResolvedValue({ free: 1000, locked: 0, total: 1000 }),
-    placeOrder: jest.fn().mockResolvedValue({
+    connect: (jest.fn() as any).mockResolvedValue(undefined),
+    disconnect: (jest.fn() as any).mockResolvedValue(undefined),
+    getCurrentPrice: (jest.fn() as any).mockResolvedValue(0.14),
+    getBalance: (jest.fn() as any).mockResolvedValue({ free: 1000, locked: 0, total: 1000 }),
+    placeOrder: (jest.fn() as any).mockResolvedValue({
       orderId: '123',
       symbol: 'DOGEUSDT',
       side: 'BUY',
@@ -302,7 +302,7 @@ describe('API Integration Tests', () => {
     });
 
     it('should handle malformed JSON', async () => {
-      const response = await request(app)
+      await request(app)
         .post('/api/simulation')
         .set('Content-Type', 'application/json')
         .send('{ invalid json }')
