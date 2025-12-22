@@ -65,30 +65,27 @@ jobs:
             --region ${{ env.AWS_REGION }} \
             --tags Key=Project,Value=crypto-trading-bot Key=Environment,Value=prod
 
-      - name: Get AWS Account ID
+      - name: Get AWS Account ID and construct tags
         id: aws-account
-        run: echo "account_id=$(aws sts get-caller-identity --query Account --output text)" >> $GITHUB_OUTPUT
+        run: |
+          ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+          REGISTRY="${ACCOUNT_ID}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com"
+          REPO="${REGISTRY}/${{ env.ECR_REPOSITORY }}"
+
+          echo "account_id=${ACCOUNT_ID}" >> $GITHUB_OUTPUT
+          echo "registry=${REGISTRY}" >> $GITHUB_OUTPUT
+          echo "repo=${REPO}" >> $GITHUB_OUTPUT
+          echo "tags=${REPO}:${GITHUB_SHA},${REPO}:latest" >> $GITHUB_OUTPUT
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
-
-      - name: Extract metadata for Docker
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ steps.aws-account.outputs.account_id }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_REPOSITORY }}
-          tags: |
-            type=sha,prefix={{branch}}-
-            type=ref,event=branch
-            type=semver,pattern={{version}}
-            latest
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
           context: .
           push: true
-          tags: ${{ steps.meta.outputs.tags }}
+          tags: ${{ steps.aws-account.outputs.tags }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
           build-args: |
