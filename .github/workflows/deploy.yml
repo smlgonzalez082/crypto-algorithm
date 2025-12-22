@@ -8,7 +8,7 @@ on:
 
 env:
   AWS_REGION: us-east-1
-  ECR_REPOSITORY: crypto-trading-bot
+  ECR_REPOSITORY: crypto-trading-bot-prod
   TERRAFORM_VERSION: 1.6.0
 
 jobs:

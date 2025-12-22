@@ -28,3 +28,13 @@ output "dashboard_url" {
   description = "URL to access the trading dashboard"
   value       = "http://${module.compute.alb_dns_name}"
 }
+
+output "ecr_repository_url" {
+  description = "ECR repository URL for Docker images"
+  value       = module.ecr.repository_url
+}
+
+output "ecr_repository_name" {
+  description = "ECR repository name"
+  value       = module.ecr.repository_name
+}

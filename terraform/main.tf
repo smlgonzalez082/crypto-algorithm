@@ -37,6 +37,14 @@ module "networking" {
   vpc_cidr     = "10.0.0.0/16"
 }
 
+# ECR Repository
+module "ecr" {
+  source = "./modules/ecr"
+
+  project_name = var.project_name
+  environment  = var.environment
+}
+
 # Cognito User Pool
 module "cognito" {
   source = "./modules/cognito"
