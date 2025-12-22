@@ -90,42 +90,39 @@ jobs:
           echo "tag1=${TAG1}" >> $GITHUB_OUTPUT
           echo "tag2=${TAG2}" >> $GITHUB_OUTPUT
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Clear Docker credentials and logout
-        run: |
-          # Remove any cached Docker credentials
-          rm -rf ~/.docker/config.json
-          # Create fresh config
-          mkdir -p ~/.docker
-          echo '{}' > ~/.docker/config.json
-
-      - name: Re-login to ECR with correct region
+      - name: Login to ECR (us-east-1 only)
         run: |
           ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
           REGISTRY="${ACCOUNT_ID}.dkr.ecr.us-east-1.amazonaws.com"
 
-          echo "Logging into: $REGISTRY"
+          echo "Logging into ECR registry: $REGISTRY"
           aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin $REGISTRY
 
-          echo "Verifying Docker config:"
-          cat ~/.docker/config.json
-
-      - name: Build and push Docker image (manual)
+      - name: Build Docker image (no buildx)
         run: |
-          echo "Building Docker image with tags:"
-          echo "  ${{ steps.aws-account.outputs.tag1 }}"
-          echo "  ${{ steps.aws-account.outputs.tag2 }}"
+          TAG1="${{ steps.aws-account.outputs.tag1 }}"
+          TAG2="${{ steps.aws-account.outputs.tag2 }}"
 
-          docker buildx build \
-            --platform linux/amd64 \
+          echo "Building image with tags:"
+          echo "  $TAG1"
+          echo "  $TAG2"
+
+          docker build \
             --build-arg NODE_ENV=production \
-            --tag ${{ steps.aws-account.outputs.tag1 }} \
-            --tag ${{ steps.aws-account.outputs.tag2 }} \
-            --push \
-            --no-cache \
+            --tag "$TAG1" \
+            --tag "$TAG2" \
             .
+
+      - name: Push Docker images
+        run: |
+          TAG1="${{ steps.aws-account.outputs.tag1 }}"
+          TAG2="${{ steps.aws-account.outputs.tag2 }}"
+
+          echo "Pushing: $TAG1"
+          docker push "$TAG1"
+
+          echo "Pushing: $TAG2"
+          docker push "$TAG2"
 
   terraform-plan:
     name: Terraform Plan
