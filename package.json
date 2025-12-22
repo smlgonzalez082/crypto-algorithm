@@ -1,6 +1,6 @@
 {
   "name": "crypto-grid-trading-bot",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "type": "module",
   "description": "Grid trading bot for Binance with web dashboard",
   "main": "dist/index.js",
