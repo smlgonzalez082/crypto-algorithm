@@ -93,6 +93,25 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
+      - name: Clear Docker credentials and logout
+        run: |
+          # Remove any cached Docker credentials
+          rm -rf ~/.docker/config.json
+          # Create fresh config
+          mkdir -p ~/.docker
+          echo '{}' > ~/.docker/config.json
+
+      - name: Re-login to ECR with correct region
+        run: |
+          ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+          REGISTRY="${ACCOUNT_ID}.dkr.ecr.us-east-1.amazonaws.com"
+
+          echo "Logging into: $REGISTRY"
+          aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin $REGISTRY
+
+          echo "Verifying Docker config:"
+          cat ~/.docker/config.json
+
       - name: Build and push Docker image (manual)
         run: |
           echo "Building Docker image with tags:"
@@ -105,6 +124,7 @@ jobs:
             --tag ${{ steps.aws-account.outputs.tag1 }} \
             --tag ${{ steps.aws-account.outputs.tag2 }} \
             --push \
+            --no-cache \
             .
 
   terraform-plan:
