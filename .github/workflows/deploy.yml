@@ -34,28 +34,49 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ env.AWS_REGION }}
+      - name: Set AWS credentials as env vars
+        run: |
+          echo "AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}" >> $GITHUB_ENV
+          echo "AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}" >> $GITHUB_ENV
+          echo "AWS_REGION=us-east-1" >> $GITHUB_ENV
+          echo "AWS_DEFAULT_REGION=us-east-1" >> $GITHUB_ENV
+
+      - name: Check and fix AWS config
+        run: |
+          echo "=== AWS Config Before ==="
+          cat ~/.aws/config || echo "No config file"
+          echo "========================"
+
+          # Remove any config that might have wrong region
+          rm -rf ~/.aws/config
+          mkdir -p ~/.aws
+
+          # Create fresh config with us-east-1 only
+          cat > ~/.aws/config <<EOF
+          [default]
+          region = us-east-1
+          output = json
+          EOF
+
+          echo "=== AWS Config After ==="
+          cat ~/.aws/config
+          echo "========================"
 
       - name: Login to Amazon ECR (manual)
         id: login-ecr
         run: |
           # Get account ID and construct registry URL
           ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
-          REGISTRY="${ACCOUNT_ID}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com"
+          REGISTRY="${ACCOUNT_ID}.dkr.ecr.us-east-1.amazonaws.com"
 
           echo "Logging into ECR registry: $REGISTRY"
 
           # Get ECR login password and login to Docker
-          aws ecr get-login-password --region ${{ env.AWS_REGION }} | \
+          aws ecr get-login-password --region us-east-1 | \
             docker login --username AWS --password-stdin $REGISTRY
 
           echo "registry=$REGISTRY" >> $GITHUB_OUTPUT
-          echo "Successfully logged into ECR in region ${{ env.AWS_REGION }}"
+          echo "Successfully logged into ECR in us-east-1"
 
       - name: Create ECR repository if it doesn't exist
         run: |
@@ -98,12 +119,15 @@ jobs:
           echo "Logging into ECR registry: $REGISTRY"
           aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin $REGISTRY
 
-      - name: Build Docker image (no buildx)
+      - name: Build Docker image (classic build, no buildkit)
+        env:
+          DOCKER_BUILDKIT: 0
         run: |
           TAG1="${{ steps.aws-account.outputs.tag1 }}"
           TAG2="${{ steps.aws-account.outputs.tag2 }}"
 
-          echo "Building image with tags:"
+          echo "Building image with DOCKER_BUILDKIT=0 (classic build)"
+          echo "Tags:"
           echo "  $TAG1"
           echo "  $TAG2"
 
