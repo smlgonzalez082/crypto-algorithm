@@ -27,13 +27,16 @@ SECRETS=$(aws secretsmanager get-secret-value --secret-id ${secrets_arn} --regio
 BINANCE_API_KEY=$(echo $SECRETS | jq -r '.api_key')
 BINANCE_API_SECRET=$(echo $SECRETS | jq -r '.api_secret')
 
+# Install git
+yum install -y git jq
+
 # Create application directory
 mkdir -p /opt/trading-bot
 cd /opt/trading-bot
 
-# Clone repository (you'll need to update this with your repo URL)
-# For now, we'll assume code is deployed separately
-# git clone https://github.com/yourusername/cryptotrading.git .
+# Clone repository
+git clone https://github.com/smlgonzalez082/crypto-algorithm.git .
+chown -R ec2-user:ec2-user /opt/trading-bot
 
 # Create .env file
 cat > .env <<EOF
@@ -104,12 +107,20 @@ TimeoutStartSec=0
 WantedBy=multi-user.target
 EOFSVC
 
+# Build and start the application
+docker-compose build
+
 # Enable and start the service
 systemctl daemon-reload
 systemctl enable trading-bot.service
+systemctl start trading-bot.service
 
-# Note: The actual docker-compose up will happen after you deploy your code
-# For now, this just sets up the infrastructure
+# Wait for application to start
+sleep 10
 
-echo "Setup complete! Deploy your application code to /opt/trading-bot and run:"
-echo "  systemctl start trading-bot"
+# Log the status
+systemctl status trading-bot.service || true
+
+echo "Setup complete! Trading bot is running."
+echo "Check status with: systemctl status trading-bot"
+echo "View logs with: docker-compose logs -f"

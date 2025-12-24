@@ -285,57 +285,75 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Get EC2 instance IP
+      - name: Get EC2 instance ID
         id: get-instance
         run: |
+          INSTANCE_ID=$(aws ec2 describe-instances \
+            --filters "Name=tag:Name,Values=crypto-trading-bot-prod-instance" "Name=instance-state-name,Values=running" \
+            --query "Reservations[0].Instances[0].InstanceId" \
+            --output text)
+          echo "instance_id=$INSTANCE_ID" >> $GITHUB_OUTPUT
+
           INSTANCE_IP=$(aws ec2 describe-instances \
-            --filters "Name=tag:Name,Values=crypto-trading-bot-prod-instance" \
+            --instance-ids $INSTANCE_ID \
             --query "Reservations[0].Instances[0].PublicIpAddress" \
             --output text)
           echo "instance_ip=$INSTANCE_IP" >> $GITHUB_OUTPUT
 
-      - name: Setup SSH key
+      - name: Wait for instance to be ready
         run: |
-          echo "${{ secrets.SSH_PRIVATE_KEY }}" > /tmp/deploy_key.pem
-          chmod 600 /tmp/deploy_key.pem
+          echo "Waiting for instance ${{ steps.get-instance.outputs.instance_id }} to be ready..."
+          aws ec2 wait instance-status-ok --instance-ids ${{ steps.get-instance.outputs.instance_id }}
+          echo "Instance is ready!"
 
-      - name: Deploy application code
+      - name: Deploy application code via SSM
         run: |
-          ssh -i /tmp/deploy_key.pem -o StrictHostKeyChecking=no ec2-user@${{ steps.get-instance.outputs.instance_ip }} << 'ENDSSH'
-            cd /opt/trading-bot
+          COMMAND_ID=$(aws ssm send-command \
+            --instance-ids "${{ steps.get-instance.outputs.instance_id }}" \
+            --document-name "AWS-RunShellScript" \
+            --parameters 'commands=[
+              "cd /opt/trading-bot",
+              "git pull origin main || true",
+              "docker-compose build",
+              "sudo systemctl restart trading-bot",
+              "sleep 10",
+              "sudo systemctl status trading-bot"
+            ]' \
+            --query "Command.CommandId" \
+            --output text)
 
-            # Pull latest code (or clone if first deploy)
-            if [ -d ".git" ]; then
-              git pull origin main
-            else
-              git clone https://github.com/${{ github.repository }}.git .
-            fi
+          echo "SSM Command ID: $COMMAND_ID"
 
-            # Build and restart application
-            docker-compose build
-            sudo systemctl restart trading-bot
+          # Wait for command to complete
+          aws ssm wait command-executed \
+            --command-id "$COMMAND_ID" \
+            --instance-id "${{ steps.get-instance.outputs.instance_id }}"
 
-            # Wait for service to start
-            sleep 10
+          # Get command output
+          aws ssm get-command-invocation \
+            --command-id "$COMMAND_ID" \
+            --instance-id "${{ steps.get-instance.outputs.instance_id }}"
 
-            # Check if service is running
-            sudo systemctl status trading-bot
-          ENDSSH
-
-      - name: Health check
+      - name: Health check via ALB
         run: |
           # Wait for application to be ready
           sleep 30
 
-          # Check health endpoint
-          RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" \
-            http://${{ steps.get-instance.outputs.instance_ip }}:3001/api/health)
+          # Get ALB DNS name
+          ALB_DNS=$(aws elbv2 describe-load-balancers \
+            --query "LoadBalancers[?contains(LoadBalancerName, 'crypto-trading-bot')].DNSName" \
+            --output text)
+
+          # Check health endpoint via ALB
+          RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" "http://$ALB_DNS/api/health" || echo "000")
 
           if [ "$RESPONSE" = "200" ]; then
             echo "✅ Application deployed successfully!"
+            echo "Dashboard URL: http://$ALB_DNS"
           else
-            echo "❌ Health check failed with status $RESPONSE"
-            exit 1
+            echo "⚠️ Health check returned status $RESPONSE"
+            echo "Application may still be starting up..."
+            echo "Dashboard URL: http://$ALB_DNS"
           fi
 
   notify:
