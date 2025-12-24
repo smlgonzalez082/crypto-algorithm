@@ -9,10 +9,10 @@ terraform {
   }
 
   backend "s3" {
-    # Configure this before running terraform init
-    # bucket = "your-terraform-state-bucket"
-    # key    = "crypto-trading-bot/terraform.tfstate"
-    # region = "us-east-1"
+    bucket = "crypto-trading-bot-terraform-state"
+    key    = "crypto-trading-bot/terraform.tfstate"
+    region = "us-east-1"
+    encrypt = true
   }
 }
 
