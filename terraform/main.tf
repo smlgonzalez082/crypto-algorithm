@@ -9,9 +9,9 @@ terraform {
   }
 
   backend "s3" {
-    bucket = "crypto-trading-bot-terraform-state"
-    key    = "crypto-trading-bot/terraform.tfstate"
-    region = "us-east-1"
+    bucket  = "crypto-trading-bot-terraform-state"
+    key     = "crypto-trading-bot/terraform.tfstate"
+    region  = "us-east-1"
     encrypt = true
   }
 }
@@ -49,36 +49,36 @@ module "ecr" {
 module "cognito" {
   source = "./modules/cognito"
 
-  project_name      = var.project_name
-  environment       = var.environment
-  user_email        = var.cognito_user_email
-  callback_urls     = var.domain_name != "" ? ["https://${var.domain_name}/callback"] : ["http://localhost:3001/callback"]
-  logout_urls       = var.domain_name != "" ? ["https://${var.domain_name}"] : ["http://localhost:3001"]
+  project_name  = var.project_name
+  environment   = var.environment
+  user_email    = var.cognito_user_email
+  callback_urls = var.domain_name != "" ? ["https://${var.domain_name}/callback"] : ["http://localhost:3001/callback"]
+  logout_urls   = var.domain_name != "" ? ["https://${var.domain_name}"] : ["http://localhost:3001"]
 }
 
 # Secrets Manager
 module "secrets" {
   source = "./modules/secrets"
 
-  project_name        = var.project_name
-  environment         = var.environment
-  binance_api_key     = var.binance_api_key
-  binance_api_secret  = var.binance_api_secret
+  project_name       = var.project_name
+  environment        = var.environment
+  binance_api_key    = var.binance_api_key
+  binance_api_secret = var.binance_api_secret
 }
 
 # EC2 Compute
 module "compute" {
   source = "./modules/compute"
 
-  project_name           = var.project_name
-  environment            = var.environment
-  instance_type          = var.instance_type
-  vpc_id                 = module.networking.vpc_id
-  public_subnet_ids      = module.networking.public_subnet_ids
-  allowed_ips            = var.allowed_ips
-  ssh_key_name           = var.ssh_key_name
-  secrets_arn            = module.secrets.secrets_arn
-  cognito_user_pool_id   = module.cognito.user_pool_id
-  cognito_client_id      = module.cognito.client_id
-  cognito_region         = var.aws_region
+  project_name         = var.project_name
+  environment          = var.environment
+  instance_type        = var.instance_type
+  vpc_id               = module.networking.vpc_id
+  public_subnet_ids    = module.networking.public_subnet_ids
+  allowed_ips          = var.allowed_ips
+  ssh_key_name         = var.ssh_key_name
+  secrets_arn          = module.secrets.secrets_arn
+  cognito_user_pool_id = module.cognito.user_pool_id
+  cognito_client_id    = module.cognito.client_id
+  cognito_region       = var.aws_region
 }
