@@ -60,9 +60,15 @@ resource "aws_cognito_user_pool_client" "main" {
   logout_urls   = var.logout_urls
 
   # Token validity
-  id_token_validity      = 60  # minutes
-  access_token_validity  = 60  # minutes
-  refresh_token_validity = 30  # days
+  id_token_validity      = 60 # minutes
+  access_token_validity  = 60 # minutes
+  refresh_token_validity = 30 # days
+
+  token_validity_units {
+    id_token      = "minutes"
+    access_token  = "minutes"
+    refresh_token = "days"
+  }
 
   # Prevent user existence errors
   prevent_user_existence_errors = "ENABLED"
