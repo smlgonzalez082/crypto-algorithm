@@ -1,25 +1,12 @@
-resource "aws_ecr_repository" "app" {
-  name                 = "${var.project_name}-${var.environment}"
-  image_tag_mutability = "MUTABLE"
-
-  image_scanning_configuration {
-    scan_on_push = true
-  }
-
-  encryption_configuration {
-    encryption_type = "AES256"
-  }
-
-  tags = {
-    Name        = "${var.project_name}-${var.environment}-ecr"
-    Environment = var.environment
-    Project     = var.project_name
-  }
+# Reference existing ECR repository created by GitHub Actions workflow
+# The workflow creates this before Terraform runs
+data "aws_ecr_repository" "app" {
+  name = "${var.project_name}-${var.environment}"
 }
 
 # Lifecycle policy to keep only the last N images
 resource "aws_ecr_lifecycle_policy" "app" {
-  repository = aws_ecr_repository.app.name
+  repository = data.aws_ecr_repository.app.name
 
   policy = jsonencode({
     rules = [
