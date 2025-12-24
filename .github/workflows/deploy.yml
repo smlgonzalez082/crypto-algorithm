@@ -185,6 +185,10 @@ jobs:
         working-directory: terraform
         run: terraform init
 
+      - name: Terraform Format
+        working-directory: terraform
+        run: terraform fmt
+
       - name: Terraform Format Check
         working-directory: terraform
         run: terraform fmt -check
@@ -242,6 +246,10 @@ jobs:
       - name: Terraform Init
         working-directory: terraform
         run: terraform init
+
+      - name: Terraform Format
+        working-directory: terraform
+        run: terraform fmt
 
       - name: Download Terraform Plan
         uses: actions/download-artifact@v4
