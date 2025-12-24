@@ -10,8 +10,8 @@ resource "aws_cognito_user_pool" "main" {
     require_symbols   = true
   }
 
-  # MFA configuration
-  mfa_configuration = "OPTIONAL"
+  # MFA configuration - disabled for now, can be enabled via AWS Console
+  mfa_configuration = "OFF"
 
   # Account recovery
   account_recovery_setting {
