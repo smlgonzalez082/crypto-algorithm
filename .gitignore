@@ -49,3 +49,4 @@ infrastructure/terraform/*.tfvars
 backtest_results/
 trade_history/
 data/
+terraform/.terraform/

@@ -268,6 +268,24 @@ jobs:
           echo "alb_dns_name=$(terraform output -raw alb_dns_name)" >> $GITHUB_OUTPUT
           echo "instance_public_ip=$(terraform output -raw instance_public_ip)" >> $GITHUB_OUTPUT
           echo "cognito_user_pool_id=$(terraform output -raw cognito_user_pool_id)" >> $GITHUB_OUTPUT
+          echo "cognito_client_id=$(terraform output -raw cognito_client_id)" >> $GITHUB_OUTPUT
+
+      - name: Update Cognito Callback URLs
+        run: |
+          ALB_DNS="${{ steps.terraform-outputs.outputs.alb_dns_name }}"
+          USER_POOL_ID="${{ steps.terraform-outputs.outputs.cognito_user_pool_id }}"
+          CLIENT_ID="${{ steps.terraform-outputs.outputs.cognito_client_id }}"
+
+          aws cognito-idp update-user-pool-client \
+            --user-pool-id "$USER_POOL_ID" \
+            --client-id "$CLIENT_ID" \
+            --region ${{ env.AWS_REGION }} \
+            --callback-urls "http://localhost:3001" "https://${ALB_DNS}" \
+            --logout-urls "http://localhost:3001" "https://${ALB_DNS}" \
+            --allowed-o-auth-flows "code" "implicit" \
+            --allowed-o-auth-scopes "email" "openid" "profile" \
+            --allowed-o-auth-flows-user-pool-client \
+            --supported-identity-providers "COGNITO"
 
   deploy-application:
     name: Deploy Application to EC2

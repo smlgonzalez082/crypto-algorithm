@@ -49,11 +49,12 @@ module "ecr" {
 module "cognito" {
   source = "./modules/cognito"
 
-  project_name  = var.project_name
-  environment   = var.environment
-  user_email    = var.cognito_user_email
-  callback_urls = var.domain_name != "" ? ["https://${var.domain_name}/callback"] : ["http://localhost:3001/callback"]
-  logout_urls   = var.domain_name != "" ? ["https://${var.domain_name}"] : ["http://localhost:3001"]
+  project_name = var.project_name
+  environment  = var.environment
+  user_email   = var.cognito_user_email
+  # Initial callback URLs - will be updated after ALB is created
+  callback_urls = ["http://localhost:3001"]
+  logout_urls   = ["http://localhost:3001"]
 }
 
 # Secrets Manager
