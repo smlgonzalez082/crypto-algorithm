@@ -61,11 +61,10 @@ async function initAuth() {
 function redirectToLogin() {
   if (!cognitoConfig || !cognitoConfig.enabled) return;
 
-  const { region, userPoolId, clientId } = cognitoConfig;
-  const domain = `https://crypto-trading-bot-dev-${userPoolId.split('_')[1]}.auth.${region}.amazoncognito.com`;
+  const { domain, clientId } = cognitoConfig;
   const redirectUri = window.location.origin;
 
-  const loginUrl = `${domain}/login?` + new URLSearchParams({
+  const loginUrl = `https://${domain}.auth.${cognitoConfig.region}.amazoncognito.com/login?` + new URLSearchParams({
     client_id: clientId,
     response_type: 'code',
     redirect_uri: redirectUri,
@@ -83,12 +82,12 @@ async function handleOAuthCallback(code) {
   console.log('Handling OAuth callback...');
 
   try {
-    const { region, userPoolId, clientId } = cognitoConfig;
-    const domain = `https://crypto-trading-bot-dev-${userPoolId.split('_')[1]}.auth.${region}.amazoncognito.com`;
+    const { domain, region, clientId } = cognitoConfig;
+    const cognitoDomain = `https://${domain}.auth.${region}.amazoncognito.com`;
     const redirectUri = window.location.origin;
 
     // Exchange authorization code for tokens
-    const tokenResponse = await fetch(`${domain}/oauth2/token`, {
+    const tokenResponse = await fetch(`${cognitoDomain}/oauth2/token`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
@@ -143,11 +142,11 @@ function logout() {
   localStorage.removeItem('refresh_token');
 
   // Redirect to Cognito logout endpoint
-  const { region, userPoolId, clientId } = cognitoConfig;
-  const domain = `https://crypto-trading-bot-dev-${userPoolId.split('_')[1]}.auth.${region}.amazoncognito.com`;
+  const { domain, region, clientId } = cognitoConfig;
+  const cognitoDomain = `https://${domain}.auth.${region}.amazoncognito.com`;
   const redirectUri = window.location.origin;
 
-  const logoutUrl = `${domain}/logout?` + new URLSearchParams({
+  const logoutUrl = `${cognitoDomain}/logout?` + new URLSearchParams({
     client_id: clientId,
     logout_uri: redirectUri,
   });

@@ -107,6 +107,7 @@ export class WebServer {
         userPoolId: config.cognitoUserPoolId || null,
         clientId: config.cognitoClientId || null,
         region: config.cognitoRegion || null,
+        domain: config.cognitoDomain || null,
       });
     });
 
