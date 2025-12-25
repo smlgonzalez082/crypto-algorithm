@@ -285,7 +285,8 @@ jobs:
             --allowed-o-auth-flows "code" "implicit" \
             --allowed-o-auth-scopes "email" "openid" "profile" \
             --allowed-o-auth-flows-user-pool-client \
-            --supported-identity-providers "COGNITO"
+            --supported-identity-providers "COGNITO" \
+            --explicit-auth-flows "ALLOW_USER_PASSWORD_AUTH" "ALLOW_ADMIN_USER_PASSWORD_AUTH" "ALLOW_REFRESH_TOKEN_AUTH" "ALLOW_USER_SRP_AUTH"
 
   deploy-application:
     name: Deploy Application to EC2
