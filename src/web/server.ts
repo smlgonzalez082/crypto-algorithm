@@ -76,8 +76,8 @@ export class WebServer {
     // Apply authentication to all /api/* routes except public endpoints
     this.app.use("/api/*", (req, res, next) => {
       // Skip authentication for public endpoints
-      // Note: req.path in wildcard routes doesn't include the /api prefix
-      if (req.path === "/health" || req.path === "/auth/config") {
+      // In Express, req.path contains the full path including /api
+      if (req.path === "/api/health" || req.path === "/api/auth/config") {
         next();
         return;
       }
