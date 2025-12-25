@@ -76,7 +76,8 @@ export class WebServer {
     // Apply authentication to all /api/* routes except public endpoints
     this.app.use("/api/*", (req, res, next) => {
       // Skip authentication for public endpoints
-      if (req.path === "/api/health" || req.path === "/api/auth/config") {
+      // Note: req.path in wildcard routes doesn't include the /api prefix
+      if (req.path === "/health" || req.path === "/auth/config") {
         next();
         return;
       }
@@ -488,12 +489,10 @@ export class WebServer {
         (this.bot && this.bot.getStatus().status === "running");
 
       if (isRunning) {
-        res
-          .status(400)
-          .json({
-            error:
-              "Cannot change simulation mode while bot is running. Stop the bot first.",
-          });
+        res.status(400).json({
+          error:
+            "Cannot change simulation mode while bot is running. Stop the bot first.",
+        });
         return;
       }
 
