@@ -5,19 +5,19 @@ resource "aws_security_group" "alb" {
   vpc_id      = var.vpc_id
 
   ingress {
-    description = "HTTPS from allowed IPs"
+    description = "HTTPS from anywhere"
     from_port   = 443
     to_port     = 443
     protocol    = "tcp"
-    cidr_blocks = var.allowed_ips
+    cidr_blocks = ["0.0.0.0/0"]
   }
 
   ingress {
-    description = "HTTP from allowed IPs (redirect to HTTPS)"
+    description = "HTTP from anywhere (redirect to HTTPS)"
     from_port   = 80
     to_port     = 80
     protocol    = "tcp"
-    cidr_blocks = var.allowed_ips
+    cidr_blocks = ["0.0.0.0/0"]
   }
 
   egress {
