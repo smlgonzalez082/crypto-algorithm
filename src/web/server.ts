@@ -75,21 +75,12 @@ export class WebServer {
 
     // Apply authentication to all /api/* routes except public endpoints
     this.app.use("/api/*", (req, res, next) => {
-      // Debug: log the actual path values
-      console.log(
-        "[DEBUG] req.url:",
-        req.url,
-        "req.path:",
-        req.path,
-        "req.baseUrl:",
-        req.baseUrl,
-        "req.originalUrl:",
-        req.originalUrl,
-      );
-
       // Skip authentication for public endpoints
-      // In Express, req.path contains the full path including /api
-      if (req.path === "/api/health" || req.path === "/api/auth/config") {
+      // Note: With /api/* pattern, req.path is "/" and req.originalUrl has the full path
+      if (
+        req.originalUrl === "/api/health" ||
+        req.originalUrl === "/api/auth/config"
+      ) {
         next();
         return;
       }
