@@ -38,7 +38,7 @@ const ConfigSchema = z.object({
   maxOpenOrders: z.number().int().default(50),
 
   // Web interface
-  serverPort: z.number().int().default(3001),
+  serverPort: z.number().int().default(3002),
 
   // AWS Cognito (optional - for production deployment)
   cognitoUserPoolId: z.string().default(""),

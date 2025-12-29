@@ -819,10 +819,11 @@ export class PortfolioGridBot {
       );
     }
 
-    // Update correlation data
-    correlationAnalyzer.updatePriceHistory(symbol, [
-      { timestamp: Date.now(), close: price },
-    ]);
+    // Update correlation data (append to existing history)
+    correlationAnalyzer.addPricePoint(symbol, {
+      timestamp: Date.now(),
+      close: price,
+    });
 
     // Persist price to database (throttled - every minute)
     const now = Date.now();

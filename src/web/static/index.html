@@ -1400,6 +1400,9 @@
           <p style="font-size: 0.75rem; color: #8b949e; margin-top: 0.5rem;">
             Lower correlation = better diversification
           </p>
+          <div id="correlationStatus" style="font-size: 0.75rem; color: #6e7681; margin-top: 0.5rem; padding: 0.5rem; background: #161b22; border-radius: 4px; display: none;">
+            <strong>Data Status:</strong> <span id="correlationStatusText"></span>
+          </div>
         </div>
 
         <!-- Volatility Indicators -->
@@ -1750,7 +1753,11 @@
       badge.textContent = data.status?.toUpperCase() || 'STOPPED';
       badge.className = `status-badge status-${data.status || 'stopped'}`;
 
-      document.getElementById('modeBadge').textContent = 'PORTFOLIO';
+      // Update mode badge based on actual trading mode
+      const modeBadge = document.getElementById('modeBadge');
+      modeBadge.textContent = isPortfolioMode ? 'PORTFOLIO' : 'SINGLE PAIR';
+      modeBadge.style.background = isPortfolioMode ? '#388bfd20' : '#6e40c920';
+      modeBadge.style.color = isPortfolioMode ? '#58a6ff' : '#a371f7';
 
       if (data.dataFeed) {
         updateDataFeedUI(data.dataFeed);
@@ -2231,6 +2238,41 @@
           document.getElementById('diversificationScore').textContent = `Diversification: ${formatNumber(data.summary.diversificationScore * 100, 0)}%`;
         }
 
+        // Log price history status for debugging (pairs need 10+ data points for correlation)
+        if (data.priceHistoryStatus) {
+          const statusMap = new Map(Object.entries(data.priceHistoryStatus));
+          const insufficientPairs = [];
+          const sufficientPairs = [];
+
+          console.log('Price history status (min 10 points needed for correlation):');
+          for (const [symbol, status] of statusMap) {
+            const hasEnough = status.returns >= 10;
+            const indicator = hasEnough ? '✓' : '✗';
+            console.log(`  ${indicator} ${symbol}: ${status.points} prices, ${status.returns} returns`);
+
+            if (hasEnough) {
+              sufficientPairs.push(symbol);
+            } else {
+              insufficientPairs.push(`${symbol} (${status.returns}/10)`);
+            }
+          }
+
+          // Update UI status
+          const statusDiv = document.getElementById('correlationStatus');
+          const statusText = document.getElementById('correlationStatusText');
+
+          if (insufficientPairs.length > 0) {
+            statusDiv.style.display = 'block';
+            statusText.innerHTML = `${sufficientPairs.length} pairs ready. Waiting for data: ${insufficientPairs.join(', ')}`;
+          } else if (sufficientPairs.length > 0) {
+            statusDiv.style.display = 'block';
+            statusDiv.style.color = '#3fb950';
+            statusText.textContent = `All ${sufficientPairs.length} pairs have sufficient data for correlation analysis`;
+          } else {
+            statusDiv.style.display = 'none';
+          }
+        }
+
       } catch (err) {
         console.error('Failed to load correlation data:', err);
       }
@@ -2514,8 +2556,14 @@
           addActivity(data.error || 'Failed to start', 'error');
           alert(data.error || 'Failed to start portfolio bot');
         } else {
+          isPortfolioMode = true;
           addActivity('Portfolio bot started successfully', 'success');
           document.getElementById('totalCapital').textContent = `$${formatNumber(capital)}`;
+          // Update mode badge
+          const modeBadge = document.getElementById('modeBadge');
+          modeBadge.textContent = 'PORTFOLIO';
+          modeBadge.style.background = '#388bfd20';
+          modeBadge.style.color = '#58a6ff';
         }
       } catch (err) {
         addActivity('Failed to start bot', 'error');
@@ -2532,7 +2580,13 @@
           addActivity(data.error || 'Failed to start', 'error');
           alert(data.error || 'Failed to start bot');
         } else {
+          isPortfolioMode = false;
           addActivity('Single pair bot started', 'success');
+          // Update mode badge
+          const modeBadge = document.getElementById('modeBadge');
+          modeBadge.textContent = 'SINGLE PAIR';
+          modeBadge.style.background = '#6e40c920';
+          modeBadge.style.color = '#a371f7';
         }
       } catch (err) {
         addActivity('Failed to start bot', 'error');
@@ -2752,9 +2806,13 @@
       fetch('/api/status')
         .then(res => res.json())
         .then(data => {
+          // Detect mode based on response structure
           if (data.pairs) {
-            updatePortfolioStatus(data);
+            isPortfolioMode = true;
+          } else if (data.gridConfig) {
+            isPortfolioMode = false;
           }
+          updatePortfolioStatus(data);
           loadGridConfig();
           loadTradeStats();
         })
@@ -2765,6 +2823,15 @@
         .then(res => res.json())
         .then(config => {
           updateSimulationModeUI(config.simulationMode);
+
+          // Update portfolio mode indicator
+          if (config.portfolioMode !== undefined) {
+            isPortfolioMode = config.portfolioMode;
+            const modeBadge = document.getElementById('modeBadge');
+            modeBadge.textContent = isPortfolioMode ? 'PORTFOLIO' : 'SINGLE PAIR';
+            modeBadge.style.background = isPortfolioMode ? '#388bfd20' : '#6e40c920';
+            modeBadge.style.color = isPortfolioMode ? '#58a6ff' : '#a371f7';
+          }
 
           // Update UI with config values
           if (config.totalCapital) {

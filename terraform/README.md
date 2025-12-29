@@ -32,23 +32,27 @@ This directory contains Terraform configurations to deploy the crypto trading bo
 ## Infrastructure Components
 
 ### Networking Module
+
 - **VPC**: Isolated network for all resources
 - **Public Subnets**: 2 subnets across availability zones
 - **Internet Gateway**: Enables internet access
 - **Route Tables**: Routes traffic between subnets and internet
 
 ### Cognito Module
+
 - **User Pool**: Manages user authentication
 - **App Client**: OAuth2 configuration for web dashboard
 - **Hosted UI**: Pre-built login/signup pages
 - **Security**: 12+ character passwords, optional MFA, advanced security mode
 
 ### Secrets Module
+
 - **Secrets Manager**: Securely stores Binance API credentials
 - **IAM Access**: EC2 instance can retrieve secrets at runtime
 - **Recovery**: 7-day recovery window for accidental deletions
 
 ### Compute Module
+
 - **EC2 Instance**: Runs the trading bot in Docker
 - **Application Load Balancer**: HTTPS endpoint with health checks
 - **Security Groups**: Restricts access to allowed IPs only
@@ -65,6 +69,7 @@ This directory contains Terraform configurations to deploy the crypto trading bo
    # Enter your AWS Access Key ID, Secret Access Key, and region
    ```
 3. **Terraform**: Version 1.0 or higher
+
    ```bash
    # macOS
    brew install terraform
@@ -74,6 +79,7 @@ This directory contains Terraform configurations to deploy the crypto trading bo
    unzip terraform_1.6.0_linux_amd64.zip
    sudo mv terraform /usr/local/bin/
    ```
+
 4. **SSH Key Pair**: Create in AWS EC2 console
    - AWS Console → EC2 → Key Pairs → Create key pair
    - Download the .pem file and save securely
@@ -173,11 +179,13 @@ aws cognito-idp admin-set-user-password \
 ### 7. Access the Dashboard
 
 1. Get the ALB DNS name:
+
    ```bash
    terraform output alb_dns_name
    ```
 
 2. Open in browser:
+
    ```
    https://crypto-trading-bot-dev-alb-1234567890.us-east-1.elb.amazonaws.com
    ```
@@ -238,16 +246,26 @@ aws cognito-idp admin-create-user \
   --desired-delivery-mediums EMAIL
 ```
 
-### Use Custom Domain (Production)
+### Use Custom Domain with Trusted SSL Certificate
 
-Replace self-signed certificate with ACM certificate:
+For production deployments, you can upgrade from the self-signed certificate to a trusted SSL certificate using a custom domain.
 
-1. Register domain in Route 53 or external registrar
-2. Request certificate in ACM
-3. Update `terraform/modules/compute/main.tf`:
-   - Comment out `tls_private_key`, `tls_self_signed_cert` resources
-   - Update `certificate_arn` in `aws_lb_listener.https` to use ACM ARN
-4. Add Route 53 record pointing to ALB DNS name
+**Benefits:**
+
+- No browser security warnings
+- Professional appearance
+- Trusted certificate verified by browsers
+- Only ~$6-7/year additional cost
+
+**See the detailed guide:** [SSL_CUSTOM_DOMAIN_GUIDE.md](./SSL_CUSTOM_DOMAIN_GUIDE.md)
+
+The guide covers:
+
+- Registering a domain via Route 53 or using an existing domain
+- Setting up ACM certificate with automatic DNS validation
+- Configuring Route 53 DNS records
+- Updating infrastructure for production SSL
+- Troubleshooting and maintenance
 
 ### Configure Cognito Custom Domain
 
@@ -319,12 +337,13 @@ docker ps
 docker-compose logs
 
 # Test health endpoint locally
-curl http://localhost:3001/api/health
+curl http://localhost:3002/api/health
 ```
 
 ### Cannot Access Dashboard
 
 1. **Check security group**: Ensure your IP is in `allowed_ips`
+
    ```bash
    curl ifconfig.me  # Verify your current IP
    ```
@@ -341,12 +360,14 @@ curl http://localhost:3001/api/health
 ### Cognito Authentication Issues
 
 1. **Check User Pool configuration**:
+
    ```bash
    aws cognito-idp describe-user-pool \
      --user-pool-id $(terraform output -raw cognito_user_pool_id)
    ```
 
 2. **Reset user password**:
+
    ```bash
    aws cognito-idp admin-set-user-password \
      --user-pool-id $(terraform output -raw cognito_user_pool_id) \
@@ -367,6 +388,7 @@ curl http://localhost:3001/api/health
 ### High AWS Costs
 
 Current infrastructure costs approximately:
+
 - **t3.small EC2**: ~$15/month
 - **Application Load Balancer**: ~$20/month
 - **Elastic IP**: Free while attached to running instance
@@ -376,6 +398,7 @@ Current infrastructure costs approximately:
 **Total**: ~$35-40/month
 
 To reduce costs:
+
 - Use `t3.micro` instead of `t3.small` (half the cost, but less performance)
 - Delete ALB and access EC2 directly (not recommended for production)
 - Reduce log retention in CloudWatch
@@ -389,6 +412,7 @@ terraform destroy
 ```
 
 Type `yes` when prompted. This will delete:
+
 - All EC2 instances and associated resources
 - Load balancers and target groups
 - Security groups
@@ -427,6 +451,7 @@ scp -i ~/.ssh/your-key.pem ec2-user@$(terraform output -raw instance_public_ip):
 ## Support
 
 For issues with:
+
 - **Terraform**: Check [Terraform AWS Provider docs](https://registry.terraform.io/providers/hashicorp/aws/latest/docs)
 - **AWS Cognito**: See [AWS Cognito documentation](https://docs.aws.amazon.com/cognito/)
 - **Trading Bot**: Refer to main project README.md

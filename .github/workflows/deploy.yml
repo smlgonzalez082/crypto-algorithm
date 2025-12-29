@@ -280,8 +280,8 @@ jobs:
             --user-pool-id "$USER_POOL_ID" \
             --client-id "$CLIENT_ID" \
             --region ${{ env.AWS_REGION }} \
-            --callback-urls "http://localhost:3001" "https://${ALB_DNS}" \
-            --logout-urls "http://localhost:3001" "https://${ALB_DNS}" \
+            --callback-urls "http://localhost:3002" "https://${ALB_DNS}" \
+            --logout-urls "http://localhost:3002" "https://${ALB_DNS}" \
             --allowed-o-auth-flows "code" "implicit" \
             --allowed-o-auth-scopes "email" "openid" "profile" \
             --allowed-o-auth-flows-user-pool-client \

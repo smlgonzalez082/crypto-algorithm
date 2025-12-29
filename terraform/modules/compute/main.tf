@@ -41,8 +41,8 @@ resource "aws_security_group" "ec2" {
 
   ingress {
     description     = "HTTP from ALB"
-    from_port       = 3001
-    to_port         = 3001
+    from_port       = 3002
+    to_port         = 3002
     protocol        = "tcp"
     security_groups = [aws_security_group.alb.id]
   }
@@ -263,7 +263,7 @@ resource "aws_lb" "main" {
 # Target Group
 resource "aws_lb_target_group" "main" {
   name        = "${var.project_name}-${var.environment}-tg"
-  port        = 3001
+  port        = 3002
   protocol    = "HTTP"
   vpc_id      = var.vpc_id
   target_type = "instance"
@@ -290,7 +290,7 @@ resource "aws_lb_target_group" "main" {
 resource "aws_lb_target_group_attachment" "main" {
   target_group_arn = aws_lb_target_group.main.arn
   target_id        = aws_instance.main.id
-  port             = 3001
+  port             = 3002
 }
 
 # HTTP Listener (redirect to HTTPS)

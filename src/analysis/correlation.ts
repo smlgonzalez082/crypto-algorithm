@@ -83,7 +83,7 @@ export class CorrelationAnalyzer {
   private volatilityCache: Map<string, VolatilityData> = new Map();
 
   /**
-   * Updates price history for a symbol
+   * Updates price history for a symbol (replaces existing data)
    */
   updatePriceHistory(
     symbol: string,
@@ -91,6 +91,53 @@ export class CorrelationAnalyzer {
   ): void {
     const returns = calculateReturns(prices.map((p) => p.close));
     this.priceHistories.set(symbol, { symbol, prices, returns });
+
+    // Invalidate correlation cache
+    this.correlationCache = null;
+
+    // Update volatility
+    this.updateVolatility(symbol, returns);
+  }
+
+  /**
+   * Adds a single price point to existing history (appends, doesn't replace)
+   * Maintains a maximum of 90 days of data
+   */
+  addPricePoint(
+    symbol: string,
+    price: { timestamp: number; close: number },
+  ): void {
+    const existing = this.priceHistories.get(symbol);
+
+    if (!existing) {
+      // No existing history, create new with this single point
+      this.priceHistories.set(symbol, {
+        symbol,
+        prices: [price],
+        returns: [],
+      });
+      return;
+    }
+
+    // Append new price point
+    const updatedPrices = [...existing.prices, price];
+
+    // Keep only last 90 days of data (at ~1440 minutes per day, ~130k points max)
+    // For efficiency, keep last 2000 points which is ~1.4 days at 1-minute intervals
+    const maxPoints = 2000;
+    const trimmedPrices =
+      updatedPrices.length > maxPoints
+        ? updatedPrices.slice(-maxPoints)
+        : updatedPrices;
+
+    // Recalculate returns
+    const returns = calculateReturns(trimmedPrices.map((p) => p.close));
+
+    this.priceHistories.set(symbol, {
+      symbol,
+      prices: trimmedPrices,
+      returns,
+    });
 
     // Invalidate correlation cache
     this.correlationCache = null;
@@ -346,6 +393,20 @@ export class CorrelationAnalyzer {
   }
 
   /**
+   * Gets price history data points count for debugging
+   */
+  getPriceHistoryStatus(): Map<string, { points: number; returns: number }> {
+    const status = new Map<string, { points: number; returns: number }>();
+    for (const [symbol, history] of this.priceHistories.entries()) {
+      status.set(symbol, {
+        points: history.prices.length,
+        returns: history.returns.length,
+      });
+    }
+    return status;
+  }
+
+  /**
    * Gets a summary report of all correlations
    */
   getCorrelationReport(): {
@@ -356,6 +417,7 @@ export class CorrelationAnalyzer {
       minCorrelation: { pair1: string; pair2: string; value: number } | null;
       diversificationScore: number;
     };
+    priceHistoryStatus?: Map<string, { points: number; returns: number }>;
   } {
     const matrix = this.getCorrelationMatrix();
     const pairs = Array.from(this.priceHistories.keys());
@@ -369,6 +431,7 @@ export class CorrelationAnalyzer {
           minCorrelation: null,
           diversificationScore: 0,
         },
+        priceHistoryStatus: this.getPriceHistoryStatus(),
       };
     }
 
@@ -400,6 +463,7 @@ export class CorrelationAnalyzer {
         minCorrelation: minCorr.value < 2 ? minCorr : null,
         diversificationScore: this.calculateDiversificationScore(pairs),
       },
+      priceHistoryStatus: this.getPriceHistoryStatus(),
     };
   }
 }

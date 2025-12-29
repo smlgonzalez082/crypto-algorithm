@@ -60,7 +60,7 @@ COGNITO_CLIENT_ID=${cognito_client_id}
 COGNITO_REGION=${aws_region}
 
 # Server
-SERVER_PORT=3001
+SERVER_PORT=3002
 LOG_LEVEL=info
 EOF
 
@@ -73,7 +73,7 @@ services:
     build: .
     container_name: crypto-trading-bot
     ports:
-      - "3001:3001"
+      - "3002:3002"
     env_file:
       - .env
     volumes:

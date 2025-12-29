@@ -26,7 +26,7 @@ output "cognito_domain" {
 
 output "dashboard_url" {
   description = "URL to access the trading dashboard"
-  value       = "http://${module.compute.alb_dns_name}"
+  value       = "https://${module.compute.alb_dns_name}"
 }
 
 output "ecr_repository_url" {

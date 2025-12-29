@@ -17,16 +17,16 @@ Go to your GitHub repository → Settings → Secrets and variables → Actions 
 
 Add the following secrets:
 
-| Secret Name | Description | Example |
-|-------------|-------------|---------|
-| `AWS_ACCESS_KEY_ID` | AWS IAM access key | `AKIAIOSFODNN7EXAMPLE` |
-| `AWS_SECRET_ACCESS_KEY` | AWS IAM secret key | `wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY` |
-| `ALLOWED_IPS` | Your IP addresses (JSON array) | `["123.45.67.89/32"]` |
-| `COGNITO_USER_EMAIL` | Your email for admin account | `you@example.com` |
-| `BINANCE_API_KEY` | Binance API key | Your API key |
-| `BINANCE_API_SECRET` | Binance API secret | Your API secret |
-| `SSH_KEY_NAME` | Name of EC2 SSH key pair | `my-trading-bot-key` |
-| `SSH_PRIVATE_KEY` | Private SSH key (entire file) | `-----BEGIN RSA PRIVATE KEY-----...` |
+| Secret Name             | Description                    | Example                                    |
+| ----------------------- | ------------------------------ | ------------------------------------------ |
+| `AWS_ACCESS_KEY_ID`     | AWS IAM access key             | `AKIAIOSFODNN7EXAMPLE`                     |
+| `AWS_SECRET_ACCESS_KEY` | AWS IAM secret key             | `wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY` |
+| `ALLOWED_IPS`           | Your IP addresses (JSON array) | `["123.45.67.89/32"]`                      |
+| `COGNITO_USER_EMAIL`    | Your email for admin account   | `you@example.com`                          |
+| `BINANCE_API_KEY`       | Binance API key                | Your API key                               |
+| `BINANCE_API_SECRET`    | Binance API secret             | Your API secret                            |
+| `SSH_KEY_NAME`          | Name of EC2 SSH key pair       | `my-trading-bot-key`                       |
+| `SSH_PRIVATE_KEY`       | Private SSH key (entire file)  | `-----BEGIN RSA PRIVATE KEY-----...`       |
 
 ### Step 2: Get Your Public IP
 
@@ -80,6 +80,7 @@ This adds a manual approval step before Terraform applies changes.
 ### Step 6: Trigger Deployment
 
 **Automatic Trigger:**
+
 ```bash
 git add .
 git commit -m "Deploy to AWS"
@@ -87,6 +88,7 @@ git push origin main
 ```
 
 **Manual Trigger:**
+
 1. Go to GitHub → Actions → Deploy to AWS
 2. Click "Run workflow"
 3. Select branch: `main`
@@ -97,6 +99,7 @@ git push origin main
 Go to GitHub → Actions → Deploy to AWS → Latest run
 
 The pipeline will:
+
 1. ✅ Run all tests
 2. ✅ Build Docker image and push to ECR
 3. ✅ Run Terraform plan
@@ -178,6 +181,7 @@ terraform plan
 ```
 
 Review the resources that will be created:
+
 - VPC and networking
 - EC2 instance
 - Application Load Balancer
@@ -240,7 +244,7 @@ docker-compose logs -f
 
 ```bash
 # Check health endpoint
-curl http://$INSTANCE_IP:3001/api/health
+curl http://$INSTANCE_IP:3002/api/health
 
 # Should return: {"status":"ok","timestamp":"..."}
 ```
@@ -261,6 +265,7 @@ curl http://$INSTANCE_IP:3001/api/health
 The initial user is created with a temporary password. To get it:
 
 **Option 1: Reset password via AWS Console**
+
 1. AWS Console → Cognito → User Pools
 2. Select your pool: `crypto-trading-bot-prod`
 3. Users → Select your email
@@ -288,6 +293,7 @@ sudo nano .env
 ```
 
 Important settings:
+
 ```bash
 # IMPORTANT: Keep this TRUE initially!
 SIMULATION_MODE=true
@@ -301,6 +307,7 @@ RISK_STRATEGY=moderate  # conservative, moderate, aggressive
 ```
 
 Restart after changes:
+
 ```bash
 sudo systemctl restart trading-bot
 ```
@@ -317,6 +324,7 @@ sudo systemctl restart trading-bot
 ### Monitor the Bot
 
 **View Logs:**
+
 ```bash
 # System logs
 sudo journalctl -u trading-bot -f
@@ -329,6 +337,7 @@ aws logs tail /aws/ec2/crypto-trading-bot-prod --follow
 ```
 
 **Dashboard:**
+
 - Access via ALB DNS name
 - Monitor portfolio value, PnL, active trades
 - View risk events and circuit breakers
@@ -340,6 +349,7 @@ aws logs tail /aws/ec2/crypto-trading-bot-prod --follow
 ### Update via GitHub (Automatic)
 
 Simply push to main branch:
+
 ```bash
 git add .
 git commit -m "Update trading parameters"
@@ -378,6 +388,7 @@ terraform destroy
 Type `yes` when prompted.
 
 This will delete ALL AWS resources:
+
 - EC2 instance and all data
 - Load balancer
 - Cognito User Pool (users deleted)
@@ -425,6 +436,7 @@ sudo systemctl restart trading-bot
 ### 4. Restrict IP Access
 
 Only allow your IP:
+
 ```bash
 # Update allowed_ips in terraform.tfvars
 allowed_ips = ["YOUR.CURRENT.IP/32"]
@@ -436,6 +448,7 @@ terraform apply
 ### 5. Monitor CloudWatch Alarms
 
 Set up alarms for:
+
 - High CPU usage
 - Failed health checks
 - Large trading losses
@@ -448,11 +461,13 @@ Set up alarms for:
 ### Deployment Fails
 
 **Check GitHub Actions logs:**
+
 ```
 GitHub → Actions → Latest run → View logs
 ```
 
 **Common issues:**
+
 - AWS credentials invalid → Check secrets
 - Terraform state locked → Wait or force unlock
 - EC2 instance not ready → Increase wait time
@@ -460,13 +475,16 @@ GitHub → Actions → Latest run → View logs
 ### Can't Access Dashboard
 
 1. **Check security group:**
+
    ```bash
    aws ec2 describe-security-groups \
      --filters "Name=tag:Name,Values=*alb-sg"
    ```
+
    Verify your IP is in allowed_ips
 
 2. **Check ALB health:**
+
    ```bash
    aws elbv2 describe-target-health \
      --target-group-arn $(terraform output -raw target_group_arn)
@@ -482,17 +500,20 @@ GitHub → Actions → Latest run → View logs
 ### Bot Not Trading
 
 1. **Check simulation mode:**
+
    ```bash
    cat /opt/trading-bot/.env | grep SIMULATION_MODE
    ```
 
 2. **Check API keys:**
+
    ```bash
    aws secretsmanager get-secret-value \
      --secret-id $(terraform output -raw secrets_name)
    ```
 
 3. **Check logs:**
+
    ```bash
    docker-compose logs --tail=100
    ```
@@ -518,6 +539,7 @@ permissions:
 ### CloudWatch Dashboards
 
 Create a custom dashboard:
+
 1. AWS Console → CloudWatch → Dashboards → Create dashboard
 2. Add widgets for:
    - EC2 CPU utilization
@@ -528,12 +550,14 @@ Create a custom dashboard:
 ### Cost Monitoring
 
 Set up billing alerts:
+
 1. AWS Console → Billing → Budgets
 2. Create budget: Monthly budget = $50
 3. Alert threshold: 80% of budget
 4. Email notification to your address
 
 **Estimated monthly costs:**
+
 - EC2 t3.small: ~$15
 - ALB: ~$20
 - Data transfer: ~$5

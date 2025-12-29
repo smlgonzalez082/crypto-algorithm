@@ -9,6 +9,7 @@ A production-ready, multi-pair grid trading bot for Binance.US with advanced por
 ## ✨ Features
 
 ### Trading
+
 - 🤖 **Grid Trading Strategy** - Automated buy/sell orders across price ranges
 - 📊 **Multi-Pair Portfolio** - Trade multiple cryptocurrencies simultaneously
 - 🎯 **Correlation-Aware Allocation** - Optimize diversification with correlation analysis
@@ -16,6 +17,7 @@ A production-ready, multi-pair grid trading bot for Binance.US with advanced por
 - 💰 **Kelly-Inspired Position Sizing** - Optimal capital allocation
 
 ### Risk Management
+
 - 🛡️ **Circuit Breakers** - Auto-pause on consecutive losses, daily limits, drawdown
 - 📉 **Three Risk Strategies** - Conservative, Moderate, Aggressive profiles
 - 🔔 **Risk Event Tracking** - Complete audit trail of all risk events
@@ -23,6 +25,7 @@ A production-ready, multi-pair grid trading bot for Binance.US with advanced por
 - 🎲 **Simulation Mode** - Paper trading for testing strategies
 
 ### Dashboard
+
 - 📱 **Responsive Web UI** - Works on desktop, tablet, and mobile
 - 📊 **Real-Time Updates** - WebSocket-powered live data
 - 📈 **Portfolio Analytics** - Correlation matrix, volatility indicators, performance charts
@@ -30,6 +33,7 @@ A production-ready, multi-pair grid trading bot for Binance.US with advanced por
 - 📜 **Trade History** - Complete record of all executed trades
 
 ### Infrastructure
+
 - ☁️ **AWS Deployment** - Production-ready Terraform infrastructure
 - 🔐 **Cognito Authentication** - Secure user management with MFA support
 - 🚀 **CI/CD Pipeline** - Automated testing and deployment via GitHub Actions
@@ -65,7 +69,7 @@ cp .env.example .env
 npm run dev
 
 # 4. Open dashboard
-open http://localhost:3001
+open http://localhost:3002
 ```
 
 ## 📋 Requirements
@@ -109,6 +113,7 @@ open http://localhost:3001
 ## 📊 Trading Strategy
 
 ### Grid Trading Basics
+
 1. Define price range (upper/lower bounds)
 2. Create N grid levels with equal spacing
 3. Place buy orders below current price
@@ -118,6 +123,7 @@ open http://localhost:3001
 7. Profit = spread between levels - fees
 
 ### Recommended Pairs
+
 - **DOGE/USDT** - High volatility, low correlation
 - **XLM/USDT** - Payment-focused, stable
 
@@ -125,11 +131,11 @@ open http://localhost:3001
 
 ## 🎯 Risk Strategies
 
-| Strategy | Exposure | Daily Loss | Drawdown | Consecutive Losses |
-|----------|----------|------------|----------|-------------------|
-| **Conservative** | 60% | 2.5% | 10% | 3 |
-| **Moderate** | 75% | 5% | 15% | 5 |
-| **Aggressive** | 90% | 10% | 25% | 7 |
+| Strategy         | Exposure | Daily Loss | Drawdown | Consecutive Losses |
+| ---------------- | -------- | ---------- | -------- | ------------------ |
+| **Conservative** | 60%      | 2.5%       | 10%      | 3                  |
+| **Moderate**     | 75%      | 5%         | 15%      | 5                  |
+| **Aggressive**   | 90%      | 10%        | 25%      | 7                  |
 
 ## 🧪 Testing
 
@@ -160,18 +166,21 @@ npm run test:watch
 ## 📦 Deployment Options
 
 ### Option 1: Automatic (GitHub Actions)
+
 - Push to main branch
 - Automated testing, building, and deployment
 - Zero-downtime updates
 - [Setup Guide](./DEPLOYMENT.md#automatic-deployment)
 
 ### Option 2: Quick Script
+
 ```bash
 ./scripts/deploy.sh
 # Follow interactive prompts
 ```
 
 ### Option 3: Manual Terraform
+
 ```bash
 cd terraform
 terraform init
@@ -209,24 +218,28 @@ COGNITO_REGION=us-east-1
 ## 📡 API Endpoints
 
 ### Status & Configuration
+
 - `GET /api/health` - Health check
 - `GET /api/status` - Bot status
 - `GET /api/config` - Configuration
 - `GET /api/portfolio` - Portfolio state
 
 ### Trading Data
+
 - `GET /api/grid` - Grid levels
 - `GET /api/orders` - Active orders
 - `GET /api/trades` - Trade history
 - `GET /api/balances` - Account balances
 
 ### Controls
+
 - `POST /api/portfolio/start` - Start trading
 - `POST /api/stop` - Stop bot
 - `PUT /api/simulation` - Toggle simulation
 - `PUT /api/portfolio/strategy` - Change risk strategy
 
 ### Risk & Analytics
+
 - `GET /api/risk/events` - Risk events
 - `GET /api/correlation` - Correlation matrix
 
@@ -269,16 +282,21 @@ cryptotrading/
 - ✅ **IP-Restricted Access** - Configurable allowed IPs
 - ✅ **Cognito Authentication** - JWT tokens with MFA support
 - ✅ **Encrypted Secrets** - AWS Secrets Manager
-- ✅ **HTTPS Only** - SSL/TLS encryption
+- ✅ **HTTPS Only** - SSL/TLS encryption via ALB
+  - Self-signed certificate (default) or custom domain with ACM
+  - Automatic HTTP → HTTPS redirect
+  - Modern TLS 1.3 support
 - ✅ **Encrypted EBS** - Data encryption at rest
 - ✅ **IMDSv2** - EC2 metadata security
 - ✅ **Least Privilege IAM** - Minimal required permissions
 
 [📖 Security Best Practices](./DEPLOYMENT.md#security-best-practices)
+[🔒 Custom Domain SSL Setup](./terraform/SSL_CUSTOM_DOMAIN_GUIDE.md)
 
 ## 💰 Costs
 
 **AWS Monthly Estimate**:
+
 - EC2 t3.small: ~$15
 - Application Load Balancer: ~$20
 - Other services: ~$5
@@ -292,6 +310,7 @@ cryptotrading/
 - **[Full Deployment](./DEPLOYMENT.md)** - Comprehensive deployment docs
 - **[Project Guide](./CLAUDE.md)** - Architecture and features
 - **[Terraform Guide](./terraform/README.md)** - Infrastructure details
+- **[Custom Domain SSL Setup](./terraform/SSL_CUSTOM_DOMAIN_GUIDE.md)** - Upgrade to trusted SSL certificate
 - **[Testing Guide](./tests/README.md)** - Test documentation
 - **[API Reference](./CLAUDE.md#api-endpoints)** - Complete API docs
 

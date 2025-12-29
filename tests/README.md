@@ -73,6 +73,7 @@ npm run test:coverage
 ```
 
 Coverage reports are generated in the `coverage/` directory:
+
 - `coverage/lcov-report/index.html` - HTML coverage report
 - `coverage/lcov.info` - LCOV format (for CI/CD)
 
@@ -83,6 +84,7 @@ Coverage reports are generated in the `coverage/` directory:
 Unit tests focus on individual components in isolation with mocked dependencies.
 
 **Grid Bot Tests** (`tests/bot/grid.test.ts`):
+
 - Constructor initialization
 - Start/stop lifecycle
 - Grid level generation
@@ -92,6 +94,7 @@ Unit tests focus on individual components in isolation with mocked dependencies.
 - Error handling
 
 **Portfolio Bot Tests** (`tests/bot/portfolioBot.test.ts`):
+
 - Multi-pair management
 - Pair addition/removal
 - Portfolio allocation
@@ -100,6 +103,7 @@ Unit tests focus on individual components in isolation with mocked dependencies.
 - Lifecycle management
 
 **Portfolio Risk Tests** (`tests/bot/portfolioRisk.test.ts`):
+
 - Conservative strategy limits
 - Moderate strategy limits
 - Aggressive strategy limits
@@ -111,6 +115,7 @@ Unit tests focus on individual components in isolation with mocked dependencies.
 - Win rate calculations
 
 **Auth Middleware Tests** (`tests/middleware/auth.test.ts`):
+
 - Cognito verifier initialization
 - Token validation
 - Bearer token extraction
@@ -124,6 +129,7 @@ Unit tests focus on individual components in isolation with mocked dependencies.
 Integration tests verify that multiple components work together correctly.
 
 **API Tests** (`tests/integration/api.test.ts`):
+
 - Health check endpoint
 - Auth configuration endpoint
 - Bot status endpoints
@@ -143,6 +149,7 @@ Integration tests verify that multiple components work together correctly.
 E2E tests verify the entire application from the user's perspective.
 
 **Dashboard Tests** (`tests/e2e/dashboard.spec.ts`):
+
 - Page loading and initialization
 - Header and navigation
 - Portfolio metrics display
@@ -171,7 +178,7 @@ E2E tests verify the entire application from the user's perspective.
 
 - **Browsers**: Chromium, Firefox, WebKit
 - **Mobile**: Pixel 5, iPhone 12
-- **Base URL**: http://localhost:3001
+- **Base URL**: http://localhost:3002
 - **Retries**: 2 in CI, 0 locally
 - **Trace**: On first retry
 - **Screenshot**: On failure only
@@ -181,9 +188,9 @@ E2E tests verify the entire application from the user's perspective.
 ### Unit Test Example
 
 ```typescript
-import { GridBot } from '../../src/bot/grid.js';
+import { GridBot } from "../../src/bot/grid.js";
 
-describe('GridBot', () => {
+describe("GridBot", () => {
   let bot: GridBot;
   let mockClient: jest.Mocked<BinanceClient>;
 
@@ -192,9 +199,9 @@ describe('GridBot', () => {
     bot = new GridBot(mockClient, mockRiskManager);
   });
 
-  it('should start successfully', async () => {
+  it("should start successfully", async () => {
     await bot.start();
-    expect(bot.getStatus().status).toBe('running');
+    expect(bot.getStatus().status).toBe("running");
   });
 });
 ```
@@ -202,10 +209,10 @@ describe('GridBot', () => {
 ### Integration Test Example
 
 ```typescript
-import request from 'supertest';
-import { WebServer } from '../../src/web/server.js';
+import request from "supertest";
+import { WebServer } from "../../src/web/server.js";
 
-describe('API Tests', () => {
+describe("API Tests", () => {
   let server: WebServer;
   let app: any;
 
@@ -214,12 +221,10 @@ describe('API Tests', () => {
     app = (server as any).app;
   });
 
-  it('GET /api/health should return OK', async () => {
-    const response = await request(app)
-      .get('/api/health')
-      .expect(200);
+  it("GET /api/health should return OK", async () => {
+    const response = await request(app).get("/api/health").expect(200);
 
-    expect(response.body.status).toBe('ok');
+    expect(response.body.status).toBe("ok");
   });
 });
 ```
@@ -227,10 +232,10 @@ describe('API Tests', () => {
 ### E2E Test Example
 
 ```typescript
-import { test, expect } from '@playwright/test';
+import { test, expect } from "@playwright/test";
 
-test('should load dashboard', async ({ page }) => {
-  await page.goto('/');
+test("should load dashboard", async ({ page }) => {
+  await page.goto("/");
   await expect(page).toHaveTitle(/Grid Trading Bot/);
 });
 ```
@@ -242,13 +247,14 @@ test('should load dashboard', async ({ page }) => {
 Tests automatically set simulation mode and test API keys in `tests/setup.ts`:
 
 ```typescript
-process.env.SIMULATION_MODE = 'true';
-process.env.BINANCE_API_KEY = 'test_api_key';
+process.env.SIMULATION_MODE = "true";
+process.env.BINANCE_API_KEY = "test_api_key";
 ```
 
 ### External Dependencies
 
 Key mocks:
+
 - **Binance Client**: Mocked to avoid real API calls
 - **Logger**: Mocked to reduce test output
 - **WebSocket**: Mocked for predictable behavior
@@ -282,12 +288,14 @@ npm run typecheck
 ## Test Coverage Goals
 
 Target coverage levels:
+
 - **Statements**: > 80%
 - **Branches**: > 75%
 - **Functions**: > 80%
 - **Lines**: > 80%
 
 Current coverage by area:
+
 - **Bot Logic**: ~90% (grid.ts, portfolioBot.ts)
 - **Risk Management**: ~95% (portfolioRisk.ts, risk.ts)
 - **API Endpoints**: ~85% (server.ts)
@@ -341,8 +349,8 @@ open coverage/lcov-report/index.html
 If tests fail with "port already in use":
 
 ```bash
-# Kill process on port 3001
-lsof -ti:3001 | xargs kill -9
+# Kill process on port 3002
+lsof -ti:3002 | xargs kill -9
 ```
 
 ### WebSocket Connection Errors

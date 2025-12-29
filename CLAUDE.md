@@ -1,9 +1,11 @@
 # Crypto Grid Trading Bot
 
 ## Project Overview
+
 A multi-pair grid trading bot for cryptocurrency trading on Binance.US, with a real-time web dashboard. Supports portfolio-level risk management with correlation-aware allocation.
 
 ## Architecture
+
 - **Language**: TypeScript (Node.js 18+)
 - **Exchange**: Binance.US (via binance npm package)
 - **Backend**: Express.js with WebSocket for real-time updates
@@ -13,6 +15,7 @@ A multi-pair grid trading bot for cryptocurrency trading on Binance.US, with a r
 - **CI/CD**: GitHub Actions
 
 ## Project Structure
+
 ```
 cryptotrading/
 ├── src/
@@ -53,7 +56,9 @@ cryptotrading/
 ## Trading Modes
 
 ### Portfolio Mode (Recommended)
+
 Trade multiple crypto pairs simultaneously with:
+
 - **Correlation-aware allocation**: Lower allocation to highly correlated pairs
 - **Volatility-weighted sizing**: Smaller positions in high-volatility assets
 - **Kelly-inspired position sizing**: Optimal bet sizing based on risk/reward
@@ -61,9 +66,11 @@ Trade multiple crypto pairs simultaneously with:
 - **Automatic rebalancing**: Maintains target allocations
 
 ### Single Pair Mode (Legacy)
+
 Traditional grid trading on a single pair.
 
 ## Grid Trading Strategy
+
 1. Define price range (upperPrice, lowerPrice)
 2. Create N grid levels with arithmetic or geometric spacing
 3. Place buy orders below current price at grid levels
@@ -72,36 +79,44 @@ Traditional grid trading on a single pair.
 6. Profit = spread between levels minus fees
 
 ## Recommended Pairs for Binance.US
+
 Default portfolio pairs selected for low correlation:
+
 - **DOGE/USDT**: High volatility, meme-driven (uncorrelated with fundamentals)
 - **XLM/USDT**: Payment-focused, more stable
 
 Alternative pairs:
+
 - **ADA/USDT**: Smart contract platform
 - **XRP/USDT**: Cross-border payments
 
 ## Risk Management Strategies
 
 ### Conservative
+
 - 60% max total exposure, 40% cash reserve
 - 2.5% max daily loss
 - 10% max drawdown before pause
 - Pause after 3 consecutive losses
 
 ### Moderate (Default)
+
 - 75% max total exposure, 25% cash reserve
 - 5% max daily loss
 - 15% max drawdown before pause
 - Pause after 5 consecutive losses
 
 ### Aggressive
+
 - 90% max total exposure, 10% cash reserve
 - 10% max daily loss
 - 25% max drawdown before pause
 - Pause after 7 consecutive losses
 
 ## Configuration
+
 Key environment variables:
+
 ```bash
 # Exchange
 BINANCE_API_KEY=your_key
@@ -122,6 +137,7 @@ GRID_AMOUNT=50
 ```
 
 ## Development Commands
+
 ```bash
 npm install          # Install dependencies
 npm run dev          # Development mode (hot reload)
@@ -135,6 +151,7 @@ npm run lint         # Lint code
 ## API Endpoints
 
 ### Status & Configuration
+
 - `GET /api/health` - Health check
 - `GET /api/status` - Bot status (portfolio or single)
 - `GET /api/config` - Current configuration
@@ -142,6 +159,7 @@ npm run lint         # Lint code
 - `GET /api/correlation` - Correlation matrix
 
 ### Trading Data
+
 - `GET /api/grid` - Grid levels (per pair in portfolio mode)
 - `GET /api/orders` - Active orders
 - `GET /api/balances` - Account balances
@@ -150,6 +168,7 @@ npm run lint         # Lint code
 - `GET /api/trades/stats` - Trade statistics
 
 ### Controls
+
 - `POST /api/start` - Start single pair bot
 - `POST /api/portfolio/start` - Start portfolio bot
 - `POST /api/stop` - Stop bot
@@ -158,10 +177,13 @@ npm run lint         # Lint code
 - `PUT /api/portfolio/strategy` - Change risk strategy
 
 ### Risk Monitoring
+
 - `GET /api/risk/events` - Risk event history
 
 ## WebSocket Events
-Connect to `ws://localhost:3001`:
+
+Connect to `ws://localhost:3002`:
+
 - `portfolio` - Portfolio status updates
 - `pair` - Individual pair updates
 - `status` - Single pair mode status
@@ -169,7 +191,9 @@ Connect to `ws://localhost:3001`:
 - `orders` - Order updates
 
 ## Database Persistence
+
 SQLite database stores:
+
 - **trades**: All executed trades with PnL
 - **grid_states**: Current grid level states
 - **pair_states**: Per-pair metrics
@@ -180,6 +204,7 @@ SQLite database stores:
 Data persists across restarts. Grid state is restored automatically.
 
 ## Important Notes
+
 - NEVER commit API keys or secrets
 - For Binance.US users: BINANCE_TESTNET doesn't work, use SIMULATION_MODE
 - Start with SIMULATION_MODE=true
