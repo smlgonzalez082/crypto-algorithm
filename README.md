@@ -58,26 +58,33 @@ git push origin main
 ### Local Development
 
 ```bash
-# 1. Install dependencies
+# 1. Use Node.js 20 (recommended via nvm)
+nvm use
+# Or install: nvm install 20
+
+# 2. Install dependencies
 npm install
 
-# 2. Configure environment
+# 3. Configure environment
 cp .env.example .env
 # Edit .env with your Binance API keys
 
-# 3. Run in development mode
+# 4. Run in development mode
 npm run dev
 
-# 4. Open dashboard
+# 5. Open dashboard
 open http://localhost:3002
 ```
 
 ## 📋 Requirements
 
-- **Node.js** 18.0.0 or higher
+- **Node.js** 20.x (LTS) - **Required for compatibility**
+- **npm** 9.0.0 or higher
 - **Binance.US Account** with API access
 - **AWS Account** (for production deployment)
 - **Minimum Capital**: $500 per trading pair recommended
+
+> **Note**: Node 20.x is required for consistent behavior across local development, CI/CD, and production. Use `nvm use` to automatically switch to the correct version.
 
 ## 🏗️ Architecture
 
