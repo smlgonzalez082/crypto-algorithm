@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/require-await */
 import express, { Request, Response, NextFunction } from "express";
 import { createServer } from "http";
 import { WebSocketServer, WebSocket } from "ws";
@@ -15,6 +16,11 @@ import { BinanceClient } from "../exchange/binance.js";
 import { RiskManager } from "../bot/risk.js";
 import { correlationAnalyzer } from "../analysis/correlation.js";
 import { initCognitoVerifier, authenticateToken } from "../middleware/auth.js";
+import {
+  backtestPairConfig,
+  optimizeGridParameters,
+} from "../bot/backtesting.js";
+import { analyticsService } from "../services/analytics.js";
 import type {
   RiskStrategy,
   PairConfig as IPairConfig,
@@ -114,7 +120,14 @@ export class WebServer {
     // Get bot status (supports both single and portfolio mode)
     this.app.get("/api/status", (_req: Request, res: Response) => {
       if (this.isPortfolioMode && this.portfolioBot) {
-        res.json(this.portfolioBot.getStatus());
+        const status = this.portfolioBot.getStatus();
+        res.json({
+          ...status,
+          mode: "portfolio",
+          config: {
+            simulationMode: config.simulationMode,
+          },
+        });
         return;
       }
 
@@ -128,21 +141,57 @@ export class WebServer {
           tradesCount: 0,
           uptime: 0,
           riskReport: {},
+          mode: "single",
+          config: {
+            simulationMode: config.simulationMode,
+          },
         });
         return;
       }
-      res.json(this.bot.getStatus());
+
+      const status = this.bot.getStatus();
+      res.json({
+        ...status,
+        mode: "single",
+        config: {
+          simulationMode: config.simulationMode,
+        },
+      });
     });
 
     // Get grid levels
-    this.app.get("/api/grid", (_req: Request, res: Response) => {
+    this.app.get("/api/grid", (req: Request, res: Response) => {
+      const { pair } = req.query as { pair?: string };
+
       if (this.isPortfolioMode && this.portfolioBot) {
+        // If specific pair requested, return just that pair's data
+        if (pair) {
+          const pairDetails = this.portfolioBot.getPairDetails(pair);
+          if (pairDetails) {
+            res.json({
+              levels: pairDetails.gridLevels,
+              currentPrice: pairDetails.currentPrice,
+              symbol: pair,
+            });
+          } else {
+            res.status(404).json({
+              error: `Pair ${pair} not found`,
+              levels: [],
+              currentPrice: 0,
+            });
+          }
+          return;
+        }
+
         // Return grid levels for all pairs
         const grids: Record<string, unknown> = {};
         for (const symbol of this.portfolioBot.getAllPairs()) {
           const pairDetails = this.portfolioBot.getPairDetails(symbol);
           if (pairDetails) {
-            grids[symbol] = pairDetails.gridLevels;
+            grids[symbol] = {
+              levels: pairDetails.gridLevels,
+              currentPrice: pairDetails.currentPrice,
+            };
           }
         }
         res.json(grids);
@@ -150,10 +199,17 @@ export class WebServer {
       }
 
       if (!this.bot) {
-        res.json([]);
+        res.json({ levels: [], currentPrice: 0 });
         return;
       }
-      res.json(this.bot.getGridLevels());
+
+      // Single pair mode
+      const gridLevels = this.bot.getGridLevels();
+      const status = this.bot.getStatus();
+      res.json({
+        levels: gridLevels,
+        currentPrice: status.currentPrice || 0,
+      });
     });
 
     // Get active orders
@@ -346,6 +402,167 @@ export class WebServer {
       }
     });
 
+    // ==========================================
+    // ANALYTICS ENDPOINTS (Performance Dashboard)
+    // ==========================================
+
+    // Get comprehensive performance metrics
+    this.app.get(
+      "/api/analytics/metrics",
+      asyncHandler(async (req: Request, res: Response) => {
+        try {
+          const { symbol, startDate, endDate } = req.query as {
+            symbol?: string;
+            startDate?: string;
+            endDate?: string;
+          };
+
+          const metrics = analyticsService.calculatePerformanceMetrics(
+            symbol,
+            startDate ? new Date(startDate) : undefined,
+            endDate ? new Date(endDate) : undefined,
+          );
+
+          res.json(metrics);
+        } catch (error) {
+          logger.error({ error }, "Failed to calculate performance metrics");
+          res
+            .status(500)
+            .json({ error: "Failed to calculate performance metrics" });
+        }
+      }),
+    );
+
+    // Get equity curve for charting
+    this.app.get(
+      "/api/analytics/equity-curve",
+      asyncHandler(async (req: Request, res: Response) => {
+        try {
+          const { symbol, startDate, endDate } = req.query as {
+            symbol?: string;
+            startDate?: string;
+            endDate?: string;
+          };
+
+          const equityCurve = analyticsService.generateEquityCurve(
+            symbol,
+            startDate ? new Date(startDate) : undefined,
+            endDate ? new Date(endDate) : undefined,
+          );
+
+          res.json(equityCurve);
+        } catch (error) {
+          logger.error({ error }, "Failed to generate equity curve");
+          res.status(500).json({ error: "Failed to generate equity curve" });
+        }
+      }),
+    );
+
+    // Get trade distribution histogram
+    this.app.get(
+      "/api/analytics/distribution",
+      asyncHandler(async (req: Request, res: Response) => {
+        try {
+          const { symbol, startDate, endDate } = req.query as {
+            symbol?: string;
+            startDate?: string;
+            endDate?: string;
+          };
+
+          const distribution = analyticsService.calculateTradeDistribution(
+            symbol,
+            startDate ? new Date(startDate) : undefined,
+            endDate ? new Date(endDate) : undefined,
+          );
+
+          res.json(distribution);
+        } catch (error) {
+          logger.error({ error }, "Failed to calculate trade distribution");
+          res
+            .status(500)
+            .json({ error: "Failed to calculate trade distribution" });
+        }
+      }),
+    );
+
+    // Get performance by pair
+    this.app.get(
+      "/api/analytics/pair-performance",
+      asyncHandler(async (req: Request, res: Response) => {
+        try {
+          const { startDate, endDate } = req.query as {
+            startDate?: string;
+            endDate?: string;
+          };
+
+          const pairPerformance = analyticsService.analyzePairPerformance(
+            startDate ? new Date(startDate) : undefined,
+            endDate ? new Date(endDate) : undefined,
+          );
+
+          res.json(pairPerformance);
+        } catch (error) {
+          logger.error({ error }, "Failed to analyze pair performance");
+          res.status(500).json({ error: "Failed to analyze pair performance" });
+        }
+      }),
+    );
+
+    // Get performance by time (hour/day)
+    this.app.get(
+      "/api/analytics/time-performance",
+      asyncHandler(async (req: Request, res: Response) => {
+        try {
+          const { symbol, startDate, endDate } = req.query as {
+            symbol?: string;
+            startDate?: string;
+            endDate?: string;
+          };
+
+          const timePerformance = analyticsService.analyzeTimePerformance(
+            symbol,
+            startDate ? new Date(startDate) : undefined,
+            endDate ? new Date(endDate) : undefined,
+          );
+
+          res.json(timePerformance);
+        } catch (error) {
+          logger.error({ error }, "Failed to analyze time performance");
+          res.status(500).json({ error: "Failed to analyze time performance" });
+        }
+      }),
+    );
+
+    // Export trades to CSV (for tax reporting)
+    this.app.get(
+      "/api/analytics/export-csv",
+      asyncHandler(async (req: Request, res: Response) => {
+        try {
+          const { symbol, startDate, endDate } = req.query as {
+            symbol?: string;
+            startDate?: string;
+            endDate?: string;
+          };
+
+          const csv = analyticsService.exportTradesToCSV(
+            symbol,
+            startDate ? new Date(startDate) : undefined,
+            endDate ? new Date(endDate) : undefined,
+          );
+
+          res.setHeader("Content-Type", "text/csv");
+          res.setHeader(
+            "Content-Disposition",
+            `attachment; filename="trades-${symbol || "all"}-${Date.now()}.csv"`,
+          );
+          res.send(csv);
+        } catch (error) {
+          logger.error({ error }, "Failed to export trades to CSV");
+          res.status(500).json({ error: "Failed to export trades to CSV" });
+        }
+      }),
+    );
+
     // Start bot (single pair mode - legacy)
     this.app.post(
       "/api/start",
@@ -449,9 +666,59 @@ export class WebServer {
           return;
         }
 
-        const { pair } = req.body as { pair: IPairConfig };
-        await this.portfolioBot.addPair(pair);
-        res.json({ message: `Added ${pair.symbol} to portfolio` });
+        const { symbol, pair } = req.body as {
+          symbol?: string;
+          pair?: IPairConfig;
+        };
+
+        // If just a symbol is provided, create a default PairConfig
+        if (symbol && !pair) {
+          // Use a default price for initial setup (will be updated when bot starts)
+          const currentPrice = 0.35; // Default middle price for grid calculation
+
+          // Extract base and quote assets
+          const baseAsset = symbol.replace("USDT", "").replace("USD", "");
+          const quoteAsset = symbol.includes("USDT") ? "USDT" : "USD";
+
+          // Create grid range: ±20% from current price
+          const gridUpper = currentPrice * 1.2;
+          const gridLower = currentPrice * 0.8;
+
+          // Calculate amount per grid based on portfolio capital
+          const portfolioValue =
+            this.portfolioBot.getPortfolioState().totalCapital;
+          const allocationPercent =
+            100 / (this.portfolioBot.getAllPairs().length + 1); // Divide evenly
+          const pairCapital = (portfolioValue * allocationPercent) / 100;
+          const amountPerGrid = pairCapital / config.gridCount;
+
+          const newPair: IPairConfig = {
+            symbol,
+            baseAsset,
+            quoteAsset,
+            gridUpper,
+            gridLower,
+            gridCount: config.gridCount,
+            amountPerGrid,
+            gridType: "arithmetic",
+            allocationPercent,
+            enabled: true,
+          };
+
+          await this.portfolioBot.addPair(newPair);
+          res.json({
+            message: `Added ${symbol} to portfolio`,
+            pair: newPair,
+          });
+        } else if (pair) {
+          // Full PairConfig provided
+          await this.portfolioBot.addPair(pair);
+          res.json({ message: `Added ${pair.symbol} to portfolio` });
+        } else {
+          res
+            .status(400)
+            .json({ error: "Must provide either 'symbol' or 'pair'" });
+        }
       }),
     );
 
@@ -512,6 +779,113 @@ export class WebServer {
           : "LIVE TRADING ENABLED - Real orders will be placed!",
       });
     });
+
+    // Backtesting endpoints
+    this.app.post(
+      "/api/backtest",
+      asyncHandler(async (req: Request, res: Response) => {
+        const {
+          symbol,
+          gridLower,
+          gridUpper,
+          gridCount,
+          amountPerGrid,
+          startDate,
+          endDate,
+          initialCapital = 1000,
+        } = req.body as {
+          symbol: string;
+          gridLower: number;
+          gridUpper: number;
+          gridCount: number;
+          amountPerGrid: number;
+          startDate: string;
+          endDate: string;
+          initialCapital?: number;
+        };
+
+        if (
+          !symbol ||
+          !gridLower ||
+          !gridUpper ||
+          !gridCount ||
+          !amountPerGrid ||
+          !startDate ||
+          !endDate
+        ) {
+          res.status(400).json({ error: "Missing required parameters" });
+          return;
+        }
+
+        // Extract base and quote assets from symbol
+        const baseAsset = symbol.replace(/USDT?$/, "");
+        const quoteAsset = symbol.match(/USDT?$/)?.[0] || "USDT";
+
+        const pairConfig: IPairConfig = {
+          symbol,
+          baseAsset,
+          quoteAsset,
+          gridLower,
+          gridUpper,
+          gridCount,
+          amountPerGrid,
+          gridType: "arithmetic",
+          allocationPercent: 100,
+          enabled: true,
+        };
+
+        try {
+          const metrics = backtestPairConfig(
+            pairConfig,
+            new Date(startDate),
+            new Date(endDate),
+            initialCapital,
+          );
+
+          res.json(metrics);
+        } catch (error) {
+          logger.error({ error }, "Backtest failed");
+          res.status(500).json({ error: "Backtest failed" });
+        }
+      }),
+    );
+
+    // Optimize grid parameters using backtesting
+    this.app.post(
+      "/api/backtest/optimize",
+      asyncHandler(async (req: Request, res: Response) => {
+        const {
+          symbol,
+          startDate,
+          endDate,
+          initialCapital = 1000,
+        } = req.body as {
+          symbol: string;
+          startDate: string;
+          endDate: string;
+          initialCapital?: number;
+        };
+
+        if (!symbol || !startDate || !endDate) {
+          res.status(400).json({ error: "Missing required parameters" });
+          return;
+        }
+
+        try {
+          const result = optimizeGridParameters(
+            symbol,
+            new Date(startDate),
+            new Date(endDate),
+            initialCapital,
+          );
+
+          res.json(result);
+        } catch (error) {
+          logger.error({ error }, "Grid optimization failed");
+          res.status(500).json({ error: "Grid optimization failed" });
+        }
+      }),
+    );
 
     // Serve frontend
     this.app.get("*", (_req: Request, res: Response) => {

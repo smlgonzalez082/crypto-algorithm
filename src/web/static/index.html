@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Grid Trading Bot - Advanced Portfolio Dashboard</title>
+  <title>Grid Trading Bot - Dashboard</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="auth.js"></script>
   <style>
@@ -14,877 +14,505 @@
     }
 
     body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      background: #0d1117;
-      color: #c9d1d9;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, monospace;
+      background: #0a0e27;
+      color: #e1e8f0;
       min-height: 100vh;
+      font-size: 14px;
     }
 
+    /* Header */
     .header {
-      background: #161b22;
+      background: linear-gradient(135deg, #1a1f3a 0%, #0f1729 100%);
+      border-bottom: 2px solid #2d3a5e;
       padding: 1rem 2rem;
-      border-bottom: 1px solid #30363d;
       display: flex;
       justify-content: space-between;
       align-items: center;
-      position: sticky;
-      top: 0;
-      z-index: 100;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
     }
 
     .header h1 {
       font-size: 1.5rem;
-      color: #58a6ff;
+      background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      font-weight: 700;
     }
 
-    .header-right {
+    .header-nav {
       display: flex;
-      align-items: center;
       gap: 1rem;
-    }
-
-    .mode-badge {
-      padding: 0.4rem 0.8rem;
-      border-radius: 12px;
-      font-size: 0.75rem;
-      background: #388bfd20;
-      color: #58a6ff;
-      font-weight: 600;
-    }
-
-    .simulation-badge {
-      padding: 0.4rem 0.8rem;
-      border-radius: 12px;
-      font-size: 0.75rem;
-      font-weight: 600;
-      display: flex;
       align-items: center;
-      gap: 0.5rem;
-      cursor: pointer;
-      transition: all 0.2s;
     }
 
-    .simulation-badge.simulation-on {
-      background: #238636;
-      color: #fff;
-    }
-
-    .simulation-badge.simulation-off {
-      background: #da3633;
-      color: #fff;
-      animation: pulse-warning 2s infinite;
-    }
-
-    @keyframes pulse-warning {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0.7; }
-    }
-
-    .data-feed-badge {
-      display: flex;
-      align-items: center;
-      gap: 0.4rem;
-      padding: 0.4rem 0.8rem;
-      border-radius: 12px;
-      font-size: 0.7rem;
-      font-weight: 600;
-      text-transform: uppercase;
-    }
-
-    .data-feed-badge.websocket {
-      background: #238636;
-      color: #fff;
-    }
-
-    .data-feed-badge.polling {
-      background: #9e6a03;
-      color: #fff;
-    }
-
-    .data-feed-badge.disconnected {
-      background: #6e7681;
-      color: #fff;
-    }
-
-    .feed-dot {
-      width: 6px;
-      height: 6px;
-      border-radius: 50%;
-      background: currentColor;
-    }
-
-    .feed-dot.live {
-      animation: pulse-dot 1.5s infinite;
-    }
-
-    @keyframes pulse-dot {
-      0%, 100% { opacity: 1; transform: scale(1); }
-      50% { opacity: 0.5; transform: scale(1.2); }
-    }
-
-    .toggle-switch {
-      position: relative;
-      width: 36px;
-      height: 20px;
-      background: #30363d;
-      border-radius: 10px;
-      cursor: pointer;
-      transition: background 0.2s;
-    }
-
-    .toggle-switch.active {
-      background: #238636;
-    }
-
-    .toggle-switch::after {
-      content: '';
-      position: absolute;
-      top: 2px;
-      left: 2px;
-      width: 16px;
-      height: 16px;
-      background: #fff;
-      border-radius: 50%;
-      transition: transform 0.2s;
-    }
-
-    .toggle-switch.active::after {
-      transform: translateX(16px);
-    }
-
-    .live-warning {
-      background: #da363320;
-      border: 1px solid #da3633;
+    .nav-btn {
+      padding: 0.5rem 1rem;
+      background: rgba(79, 172, 254, 0.1);
+      border: 1px solid #4facfe;
       border-radius: 6px;
-      padding: 0.75rem 1rem;
-      margin-bottom: 1rem;
-      display: flex;
-      align-items: center;
-      gap: 0.75rem;
-      color: #f85149;
+      color: #4facfe;
+      cursor: pointer;
+      font-weight: 600;
       font-size: 0.85rem;
-    }
-
-    .live-warning-icon {
-      font-size: 1.2rem;
-    }
-
-    /* Tab Navigation */
-    .tab-nav {
-      display: flex;
-      gap: 0.5rem;
-      margin-bottom: 1.5rem;
-      border-bottom: 2px solid #21262d;
-      overflow-x: auto;
-    }
-
-    .tab-button {
-      padding: 0.75rem 1.5rem;
-      background: transparent;
-      border: none;
-      color: #8b949e;
-      font-size: 0.9rem;
-      font-weight: 600;
-      cursor: pointer;
-      border-bottom: 2px solid transparent;
-      margin-bottom: -2px;
       transition: all 0.2s;
-      white-space: nowrap;
     }
 
-    .tab-button:hover {
-      color: #c9d1d9;
+    .nav-btn:hover {
+      background: rgba(79, 172, 254, 0.2);
+      transform: translateY(-1px);
     }
 
-    .tab-button.active {
-      color: #58a6ff;
-      border-bottom-color: #58a6ff;
+    .status-pill {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.5rem 1rem;
+      border-radius: 20px;
+      font-weight: 600;
+      font-size: 0.85rem;
+      transition: all 0.2s;
     }
 
-    .tab-content {
-      display: none;
+    .status-pill[onclick]:hover {
+      transform: scale(1.05);
+      box-shadow: 0 4px 12px rgba(79, 172, 254, 0.4);
     }
 
-    .tab-content.active {
-      display: block;
+    .status-running {
+      background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+      color: #fff;
+      animation: pulse-glow 2s infinite;
     }
 
-    /* Grid Configuration Styles */
-    .grids-container {
+    .status-stopped {
+      background: #4a5568;
+      color: #fff;
+    }
+
+    .status-paused {
+      background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+      color: #fff;
+    }
+
+    @keyframes pulse-glow {
+      0%, 100% { box-shadow: 0 0 20px rgba(56, 239, 125, 0.5); }
+      50% { box-shadow: 0 0 30px rgba(56, 239, 125, 0.8); }
+    }
+
+    .pulse-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #fff;
+      animation: pulse 1.5s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.6; transform: scale(1.3); }
+    }
+
+    /* Main Layout */
+    .container {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
-      gap: 1.5rem;
-    }
-
-    .grid-pair {
-      background: #21262d;
-      border-radius: 6px;
+      grid-template-columns: 350px 1fr 350px;
+      gap: 1rem;
       padding: 1rem;
+      max-width: 1920px;
+      margin: 0 auto;
+      height: calc(100vh - 80px);
     }
 
-    .grid-pair-header {
+    /* Panels */
+    .left-panel, .center-panel, .right-panel {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      overflow-y: auto;
+    }
+
+    .panel-card {
+      background: linear-gradient(135deg, #1e2749 0%, #181d35 100%);
+      border: 1px solid #2d3a5e;
+      border-radius: 12px;
+      padding: 1.25rem;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    }
+
+    .card-header {
+      font-size: 0.9rem;
+      color: #8b9dc3;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 1rem;
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 1rem;
-      padding-bottom: 0.75rem;
-      border-bottom: 1px solid #30363d;
-    }
-
-    .grid-pair-symbol {
       font-weight: 700;
-      font-size: 1rem;
-      color: #58a6ff;
     }
 
-    .grid-pair-range {
-      font-size: 0.75rem;
-      color: #8b949e;
-    }
-
-    .grid-visual {
-      position: relative;
-      height: 200px;
-      background: linear-gradient(180deg, rgba(56, 139, 253, 0.1) 0%, rgba(35, 134, 54, 0.1) 100%);
-      border-radius: 4px;
+    /* Bot Status */
+    .bot-state {
+      background: #0f1729;
+      border: 2px solid #2d3a5e;
+      border-radius: 8px;
+      padding: 1rem;
       margin-bottom: 1rem;
+    }
+
+    .bot-state-label {
+      font-size: 0.75rem;
+      color: #8b9dc3;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 0.5rem;
+    }
+
+    .bot-state-value {
+      font-size: 1.1rem;
+      color: #4facfe;
+      font-weight: 600;
+    }
+
+    /* Metrics */
+    .metric-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.75rem 0;
+      border-bottom: 1px solid #2d3a5e;
+    }
+
+    .metric-row:last-child {
+      border-bottom: none;
+    }
+
+    .metric-label {
+      color: #8b9dc3;
+      font-size: 0.85rem;
+    }
+
+    .metric-value {
+      font-weight: 600;
+      font-size: 1.1rem;
+      color: #e1e8f0;
+    }
+
+    .metric-value.positive {
+      color: #38ef7d;
+    }
+
+    .metric-value.negative {
+      color: #f5576c;
+    }
+
+    /* Controls */
+    .controls {
+      display: flex;
+      gap: 0.75rem;
+      margin-bottom: 1rem;
+    }
+
+    .btn {
+      flex: 1;
+      padding: 0.75rem 1.25rem;
+      border: none;
+      border-radius: 8px;
+      font-weight: 700;
+      font-size: 0.9rem;
+      cursor: pointer;
+      transition: all 0.2s;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .btn-start {
+      background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+      color: #fff;
+      box-shadow: 0 4px 12px rgba(56, 239, 125, 0.3);
+    }
+
+    .btn-start:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(56, 239, 125, 0.4);
+    }
+
+    .btn-stop {
+      background: linear-gradient(135deg, #eb3349 0%, #f5576c 100%);
+      color: #fff;
+      box-shadow: 0 4px 12px rgba(245, 87, 108, 0.3);
+    }
+
+    .btn-stop:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(245, 87, 108, 0.4);
+    }
+
+    .btn-secondary {
+      background: #2d3a5e;
+      color: #e1e8f0;
+    }
+
+    .btn-secondary:hover {
+      background: #3d4a6e;
+    }
+
+    .btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    /* Grid Visualization */
+    .grid-viz {
+      position: relative;
+      background: #0f1729;
+      border: 2px solid #2d3a5e;
+      border-radius: 8px;
+      padding: 1rem;
+      height: 400px;
       overflow: hidden;
     }
 
-    .grid-current-price {
+    .grid-canvas {
+      position: relative;
+      height: 100%;
+      background: linear-gradient(180deg, rgba(245, 87, 108, 0.05) 0%, rgba(56, 239, 125, 0.05) 100%);
+      border-radius: 4px;
+    }
+
+    .price-line {
       position: absolute;
       left: 0;
       right: 0;
-      height: 2px;
-      background: #f0f6fc;
-      z-index: 10;
+      height: 3px;
+      background: #fff;
+      box-shadow: 0 0 15px rgba(255, 255, 255, 0.8);
+      z-index: 100;
+      transition: top 0.3s ease;
     }
 
-    .grid-current-price::after {
-      content: attr(data-price);
+    .price-label {
       position: absolute;
-      right: 4px;
-      top: -8px;
-      font-size: 0.7rem;
-      color: #f0f6fc;
-      background: #0d1117;
-      padding: 0 4px;
-      border-radius: 2px;
+      right: 10px;
+      top: -12px;
+      background: #fff;
+      color: #0a0e27;
+      padding: 0.25rem 0.75rem;
+      border-radius: 4px;
+      font-weight: 700;
+      font-size: 0.9rem;
+      box-shadow: 0 2px 8px rgba(255, 255, 255, 0.3);
+      white-space: nowrap;
     }
 
-    .grid-level {
+    .grid-line {
       position: absolute;
       left: 0;
       right: 0;
       height: 1px;
-      background: #30363d;
-    }
-
-    .grid-level.buy {
-      background: #238636;
-    }
-
-    .grid-level.sell {
-      background: #da3633;
-    }
-
-    .grid-level.filled {
-      background: #58a6ff;
-      height: 2px;
-    }
-
-    .grid-stats {
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 0.5rem;
-      text-align: center;
-      font-size: 0.75rem;
-    }
-
-    .grid-stat-value {
-      font-weight: 600;
-      color: #f0f6fc;
-      font-size: 0.85rem;
-    }
-
-    .grid-stat-label {
-      color: #6e7681;
-      margin-top: 0.2rem;
-    }
-
-    /* Enhanced grid visualization */
-    .grid-level-price {
-      position: absolute;
-      left: 4px;
-      top: -8px;
-      font-size: 0.65rem;
-      color: #8b949e;
-      background: rgba(13, 17, 23, 0.9);
-      padding: 1px 4px;
-      border-radius: 2px;
-      white-space: nowrap;
-      z-index: 5;
-    }
-
-    .grid-level.buy .grid-level-price {
-      color: #3fb950;
-      font-weight: 600;
-    }
-
-    .grid-level.sell .grid-level-price {
-      color: #f85149;
-      font-weight: 600;
-    }
-
-    .grid-current-price-label {
-      position: absolute;
-      right: 4px;
-      top: -10px;
-      font-size: 0.7rem;
-      font-weight: 600;
-      color: #f0f6fc;
-      background: #0d1117;
-      padding: 2px 6px;
-      border-radius: 3px;
-      border: 1px solid #f0f6fc;
-      white-space: nowrap;
-      z-index: 11;
-    }
-
-    .grid-details {
-      margin-top: 1rem;
-      border-top: 1px solid #30363d;
-      padding-top: 0.75rem;
-    }
-
-    .grid-details summary {
-      cursor: pointer;
-      font-size: 0.85rem;
-      color: #58a6ff;
-      padding: 0.5rem;
-      border-radius: 4px;
-      user-select: none;
-    }
-
-    .grid-details summary:hover {
-      background: #161b22;
-    }
-
-    .levels-table {
-      width: 100%;
-      margin-top: 0.75rem;
-      border-collapse: collapse;
-      font-size: 0.8rem;
-    }
-
-    .levels-table th {
-      text-align: left;
-      padding: 0.5rem;
-      background: #161b22;
-      color: #8b949e;
-      font-weight: 600;
-      border-bottom: 1px solid #30363d;
-    }
-
-    .levels-table td {
-      padding: 0.4rem 0.5rem;
-      border-bottom: 1px solid #21262d;
-    }
-
-    .level-row.buy {
-      background: rgba(35, 134, 54, 0.1);
-    }
-
-    .level-row.sell {
-      background: rgba(218, 54, 51, 0.1);
-    }
-
-    .level-row.filled {
-      opacity: 0.6;
-    }
-
-    .status-badge {
-      padding: 0.5rem 1rem;
-      border-radius: 20px;
-      font-weight: 600;
-      text-transform: uppercase;
-      font-size: 0.8rem;
-    }
-
-    .status-running { background: #238636; color: #fff; }
-    .status-stopped { background: #6e7681; color: #fff; }
-    .status-error { background: #da3633; color: #fff; }
-    .status-starting { background: #9e6a03; color: #fff; }
-    .status-paused { background: #9e6a03; color: #fff; }
-
-    .container {
-      max-width: 1600px;
-      margin: 0 auto;
-      padding: 1.5rem;
-    }
-
-    .controls {
       display: flex;
-      gap: 1rem;
-      margin-bottom: 1.5rem;
-      flex-wrap: wrap;
       align-items: center;
+      transition: all 0.3s ease;
     }
 
-    .btn {
-      padding: 0.75rem 1.5rem;
-      border: none;
-      border-radius: 6px;
-      font-size: 0.9rem;
+    .grid-line.buy {
+      background: linear-gradient(90deg, transparent 0%, rgba(56, 239, 125, 0.4) 100%);
+      border-left: 3px solid #38ef7d;
+    }
+
+    .grid-line.sell {
+      background: linear-gradient(90deg, transparent 0%, rgba(245, 87, 108, 0.4) 100%);
+      border-left: 3px solid #f5576c;
+    }
+
+    .grid-line.filled {
+      opacity: 0.4;
+      background: rgba(79, 172, 254, 0.3);
+      border-left-color: #4facfe;
+    }
+
+    .grid-line-label {
+      position: absolute;
+      left: 10px;
+      font-size: 0.75rem;
       font-weight: 600;
+      padding: 0.2rem 0.5rem;
+      border-radius: 3px;
+      white-space: nowrap;
+    }
+
+    .grid-line.buy .grid-line-label {
+      background: rgba(56, 239, 125, 0.2);
+      color: #38ef7d;
+    }
+
+    .grid-line.sell .grid-line-label {
+      background: rgba(245, 87, 108, 0.2);
+      color: #f5576c;
+    }
+
+    .grid-line.filled .grid-line-label {
+      background: rgba(79, 172, 254, 0.2);
+      color: #4facfe;
+    }
+
+    /* Activity Feed */
+    .activity-feed {
+      flex: 1;
+      overflow-y: auto;
+      max-height: 500px;
+    }
+
+    .activity-item {
+      background: #0f1729;
+      border-left: 3px solid #4facfe;
+      padding: 0.75rem;
+      margin-bottom: 0.5rem;
+      border-radius: 4px;
+      font-size: 0.85rem;
+      line-height: 1.5;
+      animation: slideIn 0.3s ease;
+    }
+
+    @keyframes slideIn {
+      from {
+        opacity: 0;
+        transform: translateX(20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateX(0);
+      }
+    }
+
+    @keyframes slideOut {
+      from {
+        opacity: 1;
+        transform: translateX(0);
+      }
+      to {
+        opacity: 0;
+        transform: translateX(20px);
+      }
+    }
+
+    .activity-item.buy {
+      border-left-color: #38ef7d;
+      background: linear-gradient(90deg, rgba(56, 239, 125, 0.05) 0%, #0f1729 100%);
+    }
+
+    .activity-item.sell {
+      border-left-color: #f5576c;
+      background: linear-gradient(90deg, rgba(245, 87, 108, 0.05) 0%, #0f1729 100%);
+    }
+
+    .activity-time {
+      color: #8b9dc3;
+      font-size: 0.7rem;
+      margin-bottom: 0.25rem;
+    }
+
+    .activity-message {
+      color: #e1e8f0;
+    }
+
+    .activity-pair {
+      color: #4facfe;
+      font-weight: 700;
+    }
+
+    /* Pair Item */
+    .pair-item {
+      background: #0f1729;
+      border: 1px solid #2d3a5e;
+      border-radius: 6px;
+      padding: 0.75rem;
+      margin-bottom: 0.5rem;
       cursor: pointer;
+      transition: all 0.2s;
+      position: relative;
+    }
+
+    .pair-item::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: 3px;
+      background: transparent;
+      border-radius: 6px 0 0 6px;
       transition: all 0.2s;
     }
 
-    .btn-start { background: #238636; color: #fff; }
-    .btn-start:hover { background: #2ea043; }
-    .btn-stop { background: #da3633; color: #fff; }
-    .btn-stop:hover { background: #f85149; }
-    .btn-secondary { background: #30363d; color: #c9d1d9; }
-    .btn-secondary:hover { background: #484f58; }
-    .btn-export { background: #1f6feb; color: #fff; }
-    .btn-export:hover { background: #388bfd; }
-    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
-
-    .btn-small {
-      padding: 0.4rem 0.8rem;
-      font-size: 0.8rem;
+    .pair-item:hover {
+      border-color: #4facfe;
+      background: #1a1f3a;
+      transform: translateX(2px);
     }
 
-    .strategy-select {
-      padding: 0.75rem;
-      background: #21262d;
-      border: 1px solid #30363d;
-      border-radius: 6px;
-      color: #c9d1d9;
-      font-size: 0.9rem;
+    .pair-item:hover::before {
+      background: #4facfe;
     }
 
-    .grid-layout {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-      gap: 1.5rem;
+    .pair-item.selected {
+      border-color: #4facfe;
+      background: linear-gradient(135deg, rgba(79, 172, 254, 0.15) 0%, #1a1f3a 100%);
+      box-shadow: 0 2px 8px rgba(79, 172, 254, 0.3);
     }
 
-    .card {
-      background: #161b22;
-      border: 1px solid #30363d;
-      border-radius: 8px;
-      padding: 1.25rem;
+    .pair-item.selected::before {
+      background: #4facfe;
+      width: 4px;
     }
-
-    .card-title {
-      font-size: 0.9rem;
-      color: #8b949e;
-      margin-bottom: 1rem;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-
-    .stats-grid {
-      display: grid;
-      grid-template-columns: repeat(2, 1fr);
-      gap: 1rem;
-    }
-
-    .stat-item { text-align: center; }
-    .stat-value {
-      font-size: 1.5rem;
-      font-weight: 700;
-      color: #f0f6fc;
-    }
-    .stat-label {
-      font-size: 0.75rem;
-      color: #8b949e;
-      margin-top: 0.25rem;
-    }
-
-    .positive { color: #3fb950; }
-    .negative { color: #f85149; }
-
-    .chart-container {
-      height: 250px;
-      margin-top: 1rem;
-    }
-
-    .chart-container-small {
-      height: 150px;
-      margin-top: 0.5rem;
-    }
-
-    /* Pair Cards */
-    .pairs-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-      gap: 1rem;
-      margin-top: 1rem;
-    }
-
-    .pair-card {
-      background: #21262d;
-      border-radius: 6px;
-      padding: 1rem;
-      border-left: 3px solid #58a6ff;
-    }
-
-    .pair-card.pair-paused { border-left-color: #9e6a03; }
-    .pair-card.pair-error { border-left-color: #da3633; }
 
     .pair-header {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 0.75rem;
+      margin-bottom: 0.5rem;
     }
 
     .pair-symbol {
       font-weight: 700;
+      color: #4facfe;
+      font-size: 1rem;
+    }
+
+    .pair-price {
+      font-weight: 700;
+      color: #fff;
       font-size: 1.1rem;
-      color: #f0f6fc;
     }
-
-    .pair-status {
-      font-size: 0.7rem;
-      padding: 0.2rem 0.5rem;
-      border-radius: 10px;
-      text-transform: uppercase;
-    }
-
-    .pair-status-running { background: #238636; color: #fff; }
-    .pair-status-stopped { background: #6e7681; color: #fff; }
 
     .pair-stats {
       display: grid;
-      grid-template-columns: repeat(3, 1fr);
+      grid-template-columns: 1fr 1fr;
       gap: 0.5rem;
-      font-size: 0.8rem;
+      font-size: 0.75rem;
     }
 
     .pair-stat {
-      text-align: center;
-    }
-
-    .pair-stat-value {
-      font-weight: 600;
-      color: #f0f6fc;
+      display: flex;
+      justify-content: space-between;
     }
 
     .pair-stat-label {
-      font-size: 0.7rem;
-      color: #8b949e;
+      color: #8b9dc3;
     }
 
-    /* Tables */
-    .data-table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 0.85rem;
-      margin-top: 1rem;
-    }
-
-    .data-table th,
-    .data-table td {
-      padding: 0.75rem;
-      text-align: left;
-      border-bottom: 1px solid #21262d;
-    }
-
-    .data-table th {
-      color: #8b949e;
+    .pair-stat-value {
+      color: #e1e8f0;
       font-weight: 600;
-      background: #0d1117;
-      position: sticky;
-      top: 0;
-    }
-
-    .data-table tbody tr:hover {
-      background: #21262d;
-    }
-
-    .table-container {
-      max-height: 400px;
-      overflow-y: auto;
-      margin-top: 1rem;
-      border-radius: 6px;
-      border: 1px solid #21262d;
-    }
-
-    .table-container-small {
-      max-height: 250px;
-    }
-
-    /* Correlation Matrix */
-    .correlation-table {
-      width: 100%;
-      font-size: 0.8rem;
-      border-collapse: collapse;
-    }
-
-    .correlation-table th,
-    .correlation-table td {
-      padding: 0.5rem;
-      text-align: center;
-      border: 1px solid #30363d;
-    }
-
-    .correlation-table th {
-      background: #21262d;
-      color: #8b949e;
-    }
-
-    .corr-low { background: rgba(56, 139, 253, 0.2); color: #58a6ff; }
-    .corr-medium { background: rgba(210, 153, 34, 0.2); color: #d29922; }
-    .corr-high { background: rgba(248, 81, 73, 0.2); color: #f85149; }
-
-    /* Risk Section */
-    .risk-meter {
-      height: 8px;
-      background: #21262d;
-      border-radius: 4px;
-      overflow: hidden;
-      margin-top: 0.5rem;
-    }
-
-    .risk-fill {
-      height: 100%;
-      transition: width 0.3s;
-    }
-
-    .risk-normal { background: #3fb950; }
-    .risk-moderate { background: #d29922; }
-    .risk-high { background: #f85149; }
-
-    .risk-item {
-      display: flex;
-      justify-content: space-between;
-      padding: 0.5rem 0;
-      border-bottom: 1px solid #21262d;
-      font-size: 0.85rem;
-    }
-
-    .risk-label { color: #8b949e; }
-    .risk-value { color: #f0f6fc; font-weight: 500; }
-
-    /* Timeline */
-    .timeline {
-      position: relative;
-      padding-left: 2rem;
-    }
-
-    .timeline::before {
-      content: '';
-      position: absolute;
-      left: 0.5rem;
-      top: 0;
-      bottom: 0;
-      width: 2px;
-      background: #21262d;
-    }
-
-    .timeline-item {
-      position: relative;
-      padding: 0.75rem 0;
-      border-bottom: 1px solid #21262d;
-    }
-
-    .timeline-item::before {
-      content: '';
-      position: absolute;
-      left: -1.5rem;
-      top: 1rem;
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      background: #58a6ff;
-      border: 2px solid #0d1117;
-    }
-
-    .timeline-item.warning::before {
-      background: #d29922;
-    }
-
-    .timeline-item.critical::before {
-      background: #f85149;
-    }
-
-    .timeline-time {
-      font-size: 0.75rem;
-      color: #6e7681;
-    }
-
-    .timeline-message {
-      margin-top: 0.25rem;
-      font-size: 0.85rem;
-    }
-
-    /* Filters */
-    .filters {
-      display: flex;
-      gap: 1rem;
-      margin-bottom: 1rem;
-      flex-wrap: wrap;
-    }
-
-    .filter-group {
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-    }
-
-    .filter-label {
-      font-size: 0.85rem;
-      color: #8b949e;
-    }
-
-    .filter-select,
-    .filter-input {
-      padding: 0.5rem;
-      background: #0d1117;
-      border: 1px solid #30363d;
-      border-radius: 4px;
-      color: #c9d1d9;
-      font-size: 0.85rem;
-    }
-
-    .balance-list {
-      display: flex;
-      flex-direction: column;
-      gap: 0.75rem;
-    }
-
-    .balance-item {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 0.75rem;
-      background: #21262d;
-      border-radius: 4px;
-    }
-
-    .balance-asset { font-weight: 600; color: #f0f6fc; }
-    .balance-amount { font-family: monospace; color: #8b949e; }
-
-    .wide-card { grid-column: span 2; }
-    .full-width { grid-column: 1 / -1; }
-
-    @media (max-width: 768px) {
-      .wide-card, .full-width { grid-column: span 1; }
-      .stats-grid { grid-template-columns: 1fr; }
-      .pair-stats { grid-template-columns: repeat(2, 1fr); }
-    }
-
-    /* Recommended Pairs Panel */
-    .recommended-panel {
-      background: #21262d;
-      border-radius: 6px;
-      padding: 1rem;
-      margin-bottom: 1rem;
-    }
-
-    .recommended-panel h3 {
-      font-size: 0.9rem;
-      color: #58a6ff;
-      margin-bottom: 0.75rem;
-    }
-
-    .recommended-pairs {
-      display: flex;
-      gap: 0.5rem;
-      flex-wrap: wrap;
-    }
-
-    .recommended-pair {
-      padding: 0.5rem 1rem;
-      background: #30363d;
-      border-radius: 4px;
-      font-size: 0.85rem;
-      cursor: pointer;
-      transition: all 0.2s;
-    }
-
-    .recommended-pair:hover {
-      background: #388bfd;
-      color: #fff;
-    }
-
-    .recommended-pair.selected {
-      background: #238636;
-      color: #fff;
-    }
-
-    .capital-input {
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-      margin-top: 1rem;
-    }
-
-    .capital-input label {
-      font-size: 0.85rem;
-      color: #8b949e;
-    }
-
-    .capital-input input {
-      padding: 0.5rem;
-      background: #0d1117;
-      border: 1px solid #30363d;
-      border-radius: 4px;
-      color: #c9d1d9;
-      width: 120px;
-    }
-
-    /* Badge Styles */
-    .badge {
-      display: inline-block;
-      padding: 0.25rem 0.5rem;
-      border-radius: 12px;
-      font-size: 0.75rem;
-      font-weight: 600;
-    }
-
-    .badge-buy { background: #238636; color: #fff; }
-    .badge-sell { background: #da3633; color: #fff; }
-    .badge-filled { background: #58a6ff; color: #fff; }
-    .badge-canceled { background: #6e7681; color: #fff; }
-    .badge-new { background: #9e6a03; color: #fff; }
-
-    /* Volatility Indicator */
-    .volatility-indicator {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.25rem;
-      font-size: 0.75rem;
-    }
-
-    .volatility-bar {
-      display: inline-block;
-      width: 3px;
-      height: 12px;
-      background: #30363d;
-      margin: 0 1px;
-    }
-
-    .volatility-bar.active {
-      background: #58a6ff;
-    }
-
-    .volatility-bar.active.high {
-      background: #f85149;
     }
 
     /* Empty State */
     .empty-state {
       text-align: center;
       padding: 2rem;
-      color: #6e7681;
+      color: #8b9dc3;
     }
 
     .empty-state-icon {
@@ -893,1957 +521,1742 @@
       opacity: 0.3;
     }
 
-    /* Loading Spinner */
-    .spinner {
-      border: 3px solid #21262d;
-      border-top: 3px solid #58a6ff;
-      border-radius: 50%;
-      width: 24px;
-      height: 24px;
-      animation: spin 1s linear infinite;
-      display: inline-block;
-    }
-
-    @keyframes spin {
-      0% { transform: rotate(0deg); }
-      100% { transform: rotate(360deg); }
-    }
-
-    /* Rebalancing Panel */
-    .rebalance-action {
-      padding: 0.75rem;
-      background: #21262d;
+    /* Order Item (compact for orders list) */
+    .order-item {
+      background: #0f1729;
+      border-left: 3px solid #4facfe;
+      padding: 0.5rem;
+      margin-bottom: 0.25rem;
       border-radius: 4px;
-      margin-bottom: 0.5rem;
+      font-size: 0.8rem;
+    }
+
+    .order-item.buy {
+      border-left-color: #38ef7d;
+      background: linear-gradient(90deg, rgba(56, 239, 125, 0.05) 0%, #0f1729 100%);
+    }
+
+    .order-item.sell {
+      border-left-color: #f5576c;
+      background: linear-gradient(90deg, rgba(245, 87, 108, 0.05) 0%, #0f1729 100%);
+    }
+
+    .order-header {
       display: flex;
       justify-content: space-between;
       align-items: center;
     }
 
-    .rebalance-info {
-      flex: 1;
+    .order-side {
+      font-weight: 700;
+      text-transform: uppercase;
+      font-size: 0.75rem;
     }
 
-    .rebalance-symbol {
+    .order-side.buy {
+      color: #38ef7d;
+    }
+
+    .order-side.sell {
+      color: #f5576c;
+    }
+
+    .order-price {
+      color: #fff;
+      font-weight: 700;
+      font-size: 0.85rem;
+    }
+
+    /* Modal */
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.8);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+    }
+
+    .modal.active {
+      display: flex;
+    }
+
+    .modal-content {
+      background: linear-gradient(135deg, #1e2749 0%, #181d35 100%);
+      border: 2px solid #2d3a5e;
+      border-radius: 12px;
+      padding: 2rem;
+      max-width: 800px;
+      width: 100%;
+      max-height: 80vh;
+      overflow-y: auto;
+      position: relative;
+    }
+
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1.5rem;
+      padding-bottom: 1rem;
+      border-bottom: 2px solid #2d3a5e;
+    }
+
+    .modal-title {
+      font-size: 1.5rem;
+      color: #4facfe;
+      font-weight: 700;
+    }
+
+    .modal-close {
+      background: none;
+      border: none;
+      color: #8b9dc3;
+      font-size: 1.5rem;
+      cursor: pointer;
+      width: 32px;
+      height: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 4px;
+      transition: all 0.2s;
+    }
+
+    .modal-close:hover {
+      background: #2d3a5e;
+      color: #fff;
+    }
+
+    /* Form */
+    .form-group {
+      margin-bottom: 1.5rem;
+    }
+
+    .form-label {
+      display: block;
+      color: #8b9dc3;
+      font-size: 0.85rem;
       font-weight: 600;
-      color: #f0f6fc;
+      margin-bottom: 0.5rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
     }
 
-    .rebalance-details {
-      font-size: 0.8rem;
-      color: #8b949e;
+    .form-input, .form-select {
+      width: 100%;
+      padding: 0.75rem;
+      background: #0f1729;
+      border: 1px solid #2d3a5e;
+      border-radius: 6px;
+      color: #e1e8f0;
+      font-size: 0.9rem;
+      transition: all 0.2s;
+    }
+
+    .form-input:focus, .form-select:focus {
+      outline: none;
+      border-color: #4facfe;
+      box-shadow: 0 0 0 3px rgba(79, 172, 254, 0.1);
+    }
+
+    .form-hint {
+      font-size: 0.75rem;
+      color: #8b9dc3;
       margin-top: 0.25rem;
     }
 
-    .rebalance-arrow {
-      margin: 0 0.5rem;
-      color: #58a6ff;
+    /* Table */
+    .data-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.85rem;
+    }
+
+    .data-table th {
+      background: #0f1729;
+      color: #8b9dc3;
+      text-align: left;
+      padding: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      font-size: 0.75rem;
+      letter-spacing: 0.5px;
+      border-bottom: 2px solid #2d3a5e;
+    }
+
+    .data-table td {
+      padding: 0.75rem;
+      border-bottom: 1px solid #2d3a5e;
+    }
+
+    .data-table tr:hover {
+      background: rgba(79, 172, 254, 0.05);
+    }
+
+    .badge {
+      padding: 0.25rem 0.5rem;
+      border-radius: 4px;
+      font-size: 0.7rem;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+
+    .badge-buy {
+      background: rgba(56, 239, 125, 0.2);
+      color: #38ef7d;
+    }
+
+    .badge-sell {
+      background: rgba(245, 87, 108, 0.2);
+      color: #f5576c;
+    }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar {
+      width: 8px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: #0f1729;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: #2d3a5e;
+      border-radius: 4px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: #4facfe;
+    }
+
+    /* Responsive */
+    @media (max-width: 1400px) {
+      .container {
+        grid-template-columns: 1fr;
+        grid-template-rows: auto auto auto;
+        height: auto;
+      }
     }
   </style>
 </head>
 <body>
-  <header class="header">
-    <h1>Grid Trading Bot - Advanced Dashboard</h1>
-    <div class="header-right">
-      <div id="dataFeedBadge" class="data-feed-badge disconnected" title="Data feed status">
-        <span class="feed-dot"></span>
-        <span id="dataFeedLabel">--</span>
+  <!-- Header -->
+  <div class="header">
+    <h1>⚡ Grid Trading Bot</h1>
+    <div class="header-nav">
+      <button class="nav-btn" onclick="openConfigModal()">⚙️ Settings</button>
+      <button class="nav-btn" onclick="openTradesModal()">📊 Trade History</button>
+      <button class="nav-btn" onclick="openAnalyticsModal()">📈 Analytics</button>
+      <button class="nav-btn" onclick="openBalanceModal()">💰 Balances</button>
+      <div id="simulationBadge" class="status-pill" onclick="toggleSimulationMode()" style="cursor: pointer; user-select: none;" title="Click to toggle simulation mode">
+        <span id="simModeText">SIMULATION</span>
+        <span style="font-size: 0.7rem;">🔄</span>
       </div>
-      <div id="simulationBadge" class="simulation-badge simulation-on" onclick="toggleSimulationMode()">
-        <span id="simulationLabel">SIMULATION</span>
-        <div id="simulationToggle" class="toggle-switch active"></div>
+      <div id="botStatus" class="status-pill status-stopped">
+        <div class="pulse-dot"></div>
+        <span id="statusText">STOPPED</span>
       </div>
-      <span id="modeBadge" class="mode-badge">PORTFOLIO</span>
-      <span id="statusBadge" class="status-badge status-stopped">Stopped</span>
-      <button id="logoutBtn" class="btn btn-secondary btn-small" onclick="logout()" style="display: none;">Logout</button>
     </div>
-  </header>
+  </div>
 
+  <!-- Main Container -->
   <div class="container">
-    <!-- Live Trading Warning -->
-    <div id="liveWarning" class="live-warning" style="display: none;">
-      <span class="live-warning-icon">⚠️</span>
-      <div>
-        <strong>LIVE TRADING MODE</strong> - Real orders will be placed on Binance.US. Real money is at risk.
+    <!-- Left Panel: Bot Controls & Status -->
+    <div class="left-panel">
+      <!-- Controls -->
+      <div class="panel-card">
+        <div class="card-header">Bot Controls</div>
+        <div class="controls">
+          <button id="startBtn" class="btn btn-start" onclick="startBot()">▶ Start</button>
+          <button id="stopBtn" class="btn btn-stop" onclick="stopBot()" disabled>■ Stop</button>
+        </div>
       </div>
-    </div>
 
-    <!-- Portfolio Start Panel -->
-    <div id="startPanel" class="recommended-panel">
-      <h3>Start Portfolio Trading</h3>
-      <p style="font-size: 0.85rem; color: #8b949e; margin-bottom: 1rem;">
-        Select pairs and configure your portfolio. Recommended pairs have low correlation for better diversification.
-      </p>
-      <div class="recommended-pairs" id="pairSelector">
-        <div class="recommended-pair selected" data-symbol="DOGEUSDT">DOGE/USDT</div>
-        <div class="recommended-pair selected" data-symbol="XLMUSDT">XLM/USDT</div>
-        <div class="recommended-pair" data-symbol="ADAUSDT">ADA/USDT</div>
-        <div class="recommended-pair" data-symbol="XRPUSDT">XRP/USDT</div>
+      <!-- Current Status -->
+      <div class="panel-card">
+        <div class="card-header">Current Status</div>
+        <div class="bot-state">
+          <div class="bot-state-label">What Bot is Doing</div>
+          <div id="botAction" class="bot-state-value">Waiting to start...</div>
+        </div>
+        <div class="metric-row">
+          <span class="metric-label">Mode</span>
+          <span id="tradingMode" class="metric-value">Portfolio</span>
+        </div>
+        <div class="metric-row">
+          <span class="metric-label">Active Pairs</span>
+          <span id="activePairs" class="metric-value">0</span>
+        </div>
+        <div class="metric-row">
+          <span class="metric-label">Active Orders</span>
+          <span id="activeOrders" class="metric-value">0</span>
+        </div>
+        <div class="metric-row">
+          <span class="metric-label">Last Action</span>
+          <span id="lastAction" class="metric-value" style="font-size: 0.85rem;">-</span>
+        </div>
       </div>
-      <div class="capital-input">
-        <label>Total Capital: $</label>
-        <input type="number" id="capitalInput" value="2000" min="100" step="100">
-        <select id="strategySelect" class="strategy-select">
-          <option value="conservative">Conservative</option>
-          <option value="moderate" selected>Moderate</option>
-          <option value="aggressive">Aggressive</option>
-        </select>
+
+      <!-- Portfolio Metrics -->
+      <div class="panel-card">
+        <div class="card-header">Portfolio Summary</div>
+        <div class="metric-row">
+          <span class="metric-label">Total Capital</span>
+          <span id="totalCapital" class="metric-value">$2,000</span>
+        </div>
+        <div class="metric-row">
+          <span class="metric-label">Allocated</span>
+          <span id="allocatedCapital" class="metric-value">$0</span>
+        </div>
+        <div class="metric-row">
+          <span class="metric-label">Total PnL</span>
+          <span id="totalPnl" class="metric-value">$0.00</span>
+        </div>
+        <div class="metric-row">
+          <span class="metric-label">Today's PnL</span>
+          <span id="dailyPnl" class="metric-value">$0.00</span>
+        </div>
+        <div class="metric-row">
+          <span class="metric-label">Total Trades</span>
+          <span id="totalTrades" class="metric-value">0</span>
+        </div>
+        <div class="metric-row">
+          <span class="metric-label">Win Rate</span>
+          <span id="winRate" class="metric-value">0%</span>
+        </div>
       </div>
-    </div>
 
-    <!-- Controls -->
-    <div class="controls">
-      <button id="startPortfolioBtn" class="btn btn-start" onclick="startPortfolioBot()">Start Portfolio Bot</button>
-      <button id="startSingleBtn" class="btn btn-secondary" onclick="startSingleBot()">Start Single Pair</button>
-      <button id="stopBtn" class="btn btn-stop" onclick="stopBot()" disabled>Stop Bot</button>
-      <div style="flex: 1;"></div>
-      <button class="btn btn-export" onclick="exportTradeHistory()">
-        📊 Export Trades
-      </button>
-      <button class="btn btn-export" onclick="exportPerformanceReport()">
-        📈 Export Report
-      </button>
-    </div>
-
-    <!-- Tab Navigation -->
-    <div class="tab-nav">
-      <button class="tab-button active" onclick="switchTab('overview')">Overview</button>
-      <button class="tab-button" onclick="switchTab('grids')">Grid Configuration</button>
-      <button class="tab-button" onclick="switchTab('trades')">Trade History</button>
-      <button class="tab-button" onclick="switchTab('orders')">Active Orders</button>
-      <button class="tab-button" onclick="switchTab('risk')">Risk Management</button>
-      <button class="tab-button" onclick="switchTab('analytics')">Analytics</button>
-    </div>
-
-    <!-- Overview Tab -->
-    <div id="tab-overview" class="tab-content active">
-      <div class="grid-layout">
-        <!-- Portfolio Overview -->
-        <div class="card wide-card">
-          <h2 class="card-title">
-            Portfolio Overview
-            <span id="diversificationScore" style="font-size: 0.8rem; color: #3fb950;">Diversification: --</span>
-          </h2>
-          <div class="stats-grid" style="grid-template-columns: repeat(4, 1fr);">
-            <div class="stat-item">
-              <div id="totalCapital" class="stat-value">$2,000</div>
-              <div class="stat-label">Total Capital</div>
-            </div>
-            <div class="stat-item">
-              <div id="allocatedCapital" class="stat-value">$0</div>
-              <div class="stat-label">Allocated</div>
-            </div>
-            <div class="stat-item">
-              <div id="totalPnl" class="stat-value">$0.00</div>
-              <div class="stat-label">Total PnL</div>
-            </div>
-            <div class="stat-item">
-              <div id="totalTrades" class="stat-value">0</div>
-              <div class="stat-label">Total Trades</div>
-            </div>
-          </div>
+      <!-- Active Pairs -->
+      <div class="panel-card">
+        <div class="card-header">
+          Active Pairs
+          <button class="nav-btn" style="padding: 0.25rem 0.75rem; font-size: 0.75rem;" onclick="openConfigModal()">+ Add</button>
         </div>
-
-        <!-- Trade Statistics -->
-        <div class="card">
-          <h2 class="card-title">Trade Statistics</h2>
-          <div class="stats-grid">
-            <div class="stat-item">
-              <div id="winRate" class="stat-value">0%</div>
-              <div class="stat-label">Win Rate</div>
-            </div>
-            <div class="stat-item">
-              <div id="avgPnl" class="stat-value">$0</div>
-              <div class="stat-label">Avg PnL</div>
-            </div>
-            <div class="stat-item">
-              <div id="bestTrade" class="stat-value">$0</div>
-              <div class="stat-label">Best Trade</div>
-            </div>
-            <div class="stat-item">
-              <div id="worstTrade" class="stat-value">$0</div>
-              <div class="stat-label">Worst Trade</div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Active Pairs -->
-        <div class="card full-width">
-          <h2 class="card-title">Active Trading Pairs</h2>
-          <div id="pairsContainer" class="pairs-grid">
-            <div class="pair-card">
-              <div class="pair-header">
-                <span class="pair-symbol">No pairs active</span>
-              </div>
-              <p style="font-size: 0.8rem; color: #6e7681;">Start the portfolio bot to begin trading</p>
-            </div>
-          </div>
-        </div>
-
-        <!-- Performance Chart -->
-        <div class="card wide-card">
-          <h2 class="card-title">Portfolio Performance</h2>
-          <div class="chart-container">
-            <canvas id="performanceChart"></canvas>
-          </div>
-        </div>
-
-        <!-- Risk Management Summary -->
-        <div class="card">
-          <h2 class="card-title">Risk Management</h2>
-          <div class="risk-item">
-            <span class="risk-label">Strategy</span>
-            <span id="riskStrategy" class="risk-value">Moderate</span>
-          </div>
-          <div class="risk-item">
-            <span class="risk-label">Daily PnL</span>
-            <span id="dailyPnl" class="risk-value">$0.00</span>
-          </div>
-          <div class="risk-item">
-            <span class="risk-label">Current Drawdown</span>
-            <span id="drawdown" class="risk-value">0%</span>
-          </div>
-          <div class="risk-item">
-            <span class="risk-label">Consecutive Losses</span>
-            <span id="consecutiveLosses" class="risk-value">0</span>
-          </div>
-          <div style="margin-top: 1rem;">
-            <div class="stat-label">Risk Level</div>
-            <div class="risk-meter">
-              <div id="riskFill" class="risk-fill risk-normal" style="width: 20%"></div>
-            </div>
-            <div id="riskStatus" style="text-align: right; font-size: 0.75rem; margin-top: 0.25rem; color: #3fb950;">NORMAL</div>
-          </div>
-        </div>
-
-        <!-- Account Balances -->
-        <div class="card">
-          <h2 class="card-title">Account Balances</h2>
-          <div id="balances" class="balance-list">
-            <div class="balance-item">
-              <span class="balance-asset">Loading...</span>
-            </div>
+        <div id="pairsList">
+          <div class="empty-state">
+            <div class="empty-state-icon">📊</div>
+            <p>No pairs active</p>
+            <p style="font-size: 0.75rem; margin-top: 0.5rem; color: #8b9dc3;">
+              Click Start - bot will use default pairs
+            </p>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- Grid Configuration Tab -->
-    <div id="tab-grids" class="tab-content">
-      <div class="card full-width">
-        <h2 class="card-title">Grid Configuration & Levels</h2>
-        <div id="gridContainer" class="grids-container">
-          <p style="font-size: 0.85rem; color: #6e7681;">Start the bot to see grid levels</p>
+    <!-- Center Panel: Grid Visualization -->
+    <div class="center-panel">
+      <!-- Grid Visual -->
+      <div class="panel-card" style="flex: 1;">
+        <div class="card-header">
+          Grid Levels & Current Price
+          <span id="selectedPair" style="color: #4facfe; font-size: 1rem;">Select a pair</span>
         </div>
-      </div>
-
-      <!-- Per-Pair Price Charts -->
-      <div class="grid-layout" style="margin-top: 1.5rem;">
-        <div class="card full-width">
-          <h2 class="card-title">Per-Pair Price Charts</h2>
-          <div id="pairChartsContainer" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 1.5rem; margin-top: 1rem;">
-            <div class="empty-state">
-              <div class="empty-state-icon">📊</div>
-              <p>No active pairs to display</p>
+        <div class="grid-viz">
+          <div id="gridCanvas" class="grid-canvas">
+            <div class="empty-state" style="padding-top: 8rem;">
+              <div class="empty-state-icon">📈</div>
+              <p>Click on a pair to see its grid</p>
+              <p style="font-size: 0.8rem; margin-top: 0.5rem;">Configure pairs in Settings</p>
             </div>
           </div>
         </div>
       </div>
-    </div>
 
-    <!-- Trade History Tab -->
-    <div id="tab-trades" class="tab-content">
-      <div class="card full-width">
-        <h2 class="card-title">
-          Trade History
-          <button class="btn btn-small btn-export" onclick="loadTradeHistory()">🔄 Refresh</button>
-        </h2>
-
-        <!-- Filters -->
-        <div class="filters">
-          <div class="filter-group">
-            <label class="filter-label">Pair:</label>
-            <select id="tradeFilterPair" class="filter-select" onchange="loadTradeHistory()">
-              <option value="">All Pairs</option>
-            </select>
-          </div>
-          <div class="filter-group">
-            <label class="filter-label">Limit:</label>
-            <input type="number" id="tradeFilterLimit" class="filter-input" value="100" min="10" max="1000" onchange="loadTradeHistory()">
-          </div>
-        </div>
-
-        <div class="table-container">
-          <table class="data-table" id="tradeHistoryTable">
-            <thead>
-              <tr>
-                <th>Time</th>
-                <th>Pair</th>
-                <th>Side</th>
-                <th>Price</th>
-                <th>Quantity</th>
-                <th>Value</th>
-                <th>PnL</th>
-                <th>Grid Level</th>
-              </tr>
-            </thead>
-            <tbody id="tradeHistoryBody">
-              <tr>
-                <td colspan="8" class="empty-state">
-                  <div class="empty-state-icon">📋</div>
-                  <p>No trade history available</p>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      <!-- Trade Statistics Detailed -->
-      <div class="grid-layout" style="margin-top: 1.5rem;">
-        <div class="card">
-          <h2 class="card-title">Overall Statistics</h2>
-          <div id="overallStatsContainer">
-            <div class="risk-item">
-              <span class="risk-label">Total Trades</span>
-              <span id="statsTotalTrades" class="risk-value">0</span>
-            </div>
-            <div class="risk-item">
-              <span class="risk-label">Winning Trades</span>
-              <span id="statsWinningTrades" class="risk-value positive">0</span>
-            </div>
-            <div class="risk-item">
-              <span class="risk-label">Losing Trades</span>
-              <span id="statsLosingTrades" class="risk-value negative">0</span>
-            </div>
-            <div class="risk-item">
-              <span class="risk-label">Win Rate</span>
-              <span id="statsWinRate" class="risk-value">0%</span>
-            </div>
-            <div class="risk-item">
-              <span class="risk-label">Total PnL</span>
-              <span id="statsTotalPnl" class="risk-value">$0.00</span>
-            </div>
-            <div class="risk-item">
-              <span class="risk-label">Average PnL</span>
-              <span id="statsAvgPnl" class="risk-value">$0.00</span>
-            </div>
-          </div>
-        </div>
-
-        <div class="card">
-          <h2 class="card-title">Per-Pair Statistics</h2>
-          <div id="perPairStatsContainer">
-            <div class="empty-state">
-              <p style="font-size: 0.85rem;">No trades executed yet</p>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Active Orders Tab -->
-    <div id="tab-orders" class="tab-content">
-      <div class="card full-width">
-        <h2 class="card-title">
-          Active Orders
-          <button class="btn btn-small btn-secondary" onclick="loadActiveOrders()">🔄 Refresh</button>
-        </h2>
-
-        <div class="table-container">
-          <table class="data-table" id="activeOrdersTable">
-            <thead>
-              <tr>
-                <th>Order ID</th>
-                <th>Pair</th>
-                <th>Side</th>
-                <th>Type</th>
-                <th>Price</th>
-                <th>Quantity</th>
-                <th>Filled</th>
-                <th>Status</th>
-                <th>Grid Level</th>
-                <th>Created</th>
-              </tr>
-            </thead>
-            <tbody id="activeOrdersBody">
-              <tr>
-                <td colspan="10" class="empty-state">
-                  <div class="empty-state-icon">📝</div>
-                  <p>No active orders</p>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      <!-- Order Summary -->
-      <div class="grid-layout" style="margin-top: 1.5rem;">
-        <div class="card">
-          <h2 class="card-title">Order Summary</h2>
-          <div class="stats-grid">
-            <div class="stat-item">
-              <div id="totalOpenOrders" class="stat-value">0</div>
-              <div class="stat-label">Total Open</div>
-            </div>
-            <div class="stat-item">
-              <div id="totalBuyOrders" class="stat-value positive">0</div>
-              <div class="stat-label">Buy Orders</div>
-            </div>
-            <div class="stat-item">
-              <div id="totalSellOrders" class="stat-value negative">0</div>
-              <div class="stat-label">Sell Orders</div>
-            </div>
-            <div class="stat-item">
-              <div id="totalOrderValue" class="stat-value">$0</div>
-              <div class="stat-label">Total Value</div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Risk Management Tab -->
-    <div id="tab-risk" class="tab-content">
-      <div class="grid-layout">
-        <!-- Risk Events Timeline -->
-        <div class="card full-width">
-          <h2 class="card-title">
-            Risk Events Timeline
-            <button class="btn btn-small btn-secondary" onclick="loadRiskEvents()">🔄 Refresh</button>
-          </h2>
-          <div id="riskEventsContainer" class="timeline" style="max-height: 400px; overflow-y: auto;">
-            <div class="empty-state">
-              <div class="empty-state-icon">🛡️</div>
-              <p>No risk events recorded</p>
-            </div>
-          </div>
-        </div>
-
-        <!-- Risk Limits -->
-        <div class="card">
-          <h2 class="card-title">Risk Limits</h2>
-          <div id="riskLimitsContainer">
-            <div class="risk-item">
-              <span class="risk-label">Max Position Per Pair</span>
-              <span id="limitMaxPosition" class="risk-value">--</span>
-            </div>
-            <div class="risk-item">
-              <span class="risk-label">Max Total Exposure</span>
-              <span id="limitMaxExposure" class="risk-value">--</span>
-            </div>
-            <div class="risk-item">
-              <span class="risk-label">Min Cash Reserve</span>
-              <span id="limitMinCash" class="risk-value">--</span>
-            </div>
-            <div class="risk-item">
-              <span class="risk-label">Max Daily Loss</span>
-              <span id="limitMaxDailyLoss" class="risk-value">--</span>
-            </div>
-            <div class="risk-item">
-              <span class="risk-label">Max Drawdown</span>
-              <span id="limitMaxDrawdown" class="risk-value">--</span>
-            </div>
-            <div class="risk-item">
-              <span class="risk-label">Pause After Losses</span>
-              <span id="limitConsecutiveLosses" class="risk-value">--</span>
-            </div>
-          </div>
-        </div>
-
-        <!-- Rebalancing Suggestions -->
-        <div class="card">
-          <h2 class="card-title">
-            Rebalancing Suggestions
-            <button class="btn btn-small btn-secondary" onclick="loadRebalanceSuggestions()">🔄 Check</button>
-          </h2>
-          <div id="rebalanceContainer">
-            <div class="empty-state">
-              <p style="font-size: 0.85rem;">No rebalancing needed</p>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Analytics Tab -->
-    <div id="tab-analytics" class="tab-content">
-      <div class="grid-layout">
-        <!-- Correlation Matrix -->
-        <div class="card">
-          <h2 class="card-title">
-            Correlation Matrix
-            <button class="btn btn-small btn-secondary" onclick="loadCorrelationData()">🔄 Refresh</button>
-          </h2>
-          <table id="correlationMatrix" class="correlation-table">
-            <thead>
-              <tr>
-                <th></th>
-                <th>DOGE</th>
-                <th>XLM</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td><strong>DOGE</strong></td>
-                <td class="corr-high">1.00</td>
-                <td class="corr-low">0.35</td>
-              </tr>
-              <tr>
-                <td><strong>XLM</strong></td>
-                <td class="corr-low">0.35</td>
-                <td class="corr-high">1.00</td>
-              </tr>
-            </tbody>
-          </table>
-          <p style="font-size: 0.75rem; color: #8b949e; margin-top: 0.5rem;">
-            Lower correlation = better diversification
+      <!-- Quick Info -->
+      <div class="panel-card">
+        <div class="card-header">Grid Trading Basics</div>
+        <div style="font-size: 0.85rem; line-height: 1.6;">
+          <p style="margin-bottom: 0.75rem;">
+            <strong style="color: #38ef7d;">Buy Low:</strong> Bot places buy orders below current price
           </p>
-          <div id="correlationStatus" style="font-size: 0.75rem; color: #6e7681; margin-top: 0.5rem; padding: 0.5rem; background: #161b22; border-radius: 4px; display: none;">
-            <strong>Data Status:</strong> <span id="correlationStatusText"></span>
+          <p style="margin-bottom: 0.75rem;">
+            <strong style="color: #f5576c;">Sell High:</strong> When price rises, bot sells for profit
+          </p>
+          <p style="color: #8b9dc3;">
+            Each completed buy-sell cycle = profit. Best in ranging markets.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right Panel: Activity Feed -->
+    <div class="right-panel">
+      <!-- Live Activity Feed -->
+      <div class="panel-card" style="flex: 1;">
+        <div class="card-header">
+          Live Activity Feed
+          <span style="font-size: 0.7rem; color: #38ef7d;">● LIVE</span>
+        </div>
+        <div id="activityFeed" class="activity-feed">
+          <div class="empty-state">
+            <div class="empty-state-icon">📡</div>
+            <p>Waiting for bot activity...</p>
           </div>
         </div>
+      </div>
 
-        <!-- Volatility Indicators -->
-        <div class="card">
-          <h2 class="card-title">Volatility Indicators</h2>
-          <div id="volatilityContainer">
-            <div class="empty-state">
-              <p style="font-size: 0.85rem;">Start trading to see volatility data</p>
-            </div>
-          </div>
+      <!-- Active Orders -->
+      <div class="panel-card">
+        <div class="card-header">
+          Active Orders
+          <span id="orderCount" style="font-size: 0.85rem; color: #4facfe;">0</span>
         </div>
-
-        <!-- Historical Performance -->
-        <div class="card full-width">
-          <h2 class="card-title">
-            Historical Portfolio Performance
-            <button class="btn btn-small btn-secondary" onclick="loadHistoricalPerformance()">🔄 Refresh</button>
-          </h2>
-          <div class="chart-container">
-            <canvas id="historicalChart"></canvas>
-          </div>
-        </div>
-
-        <!-- Diversification Metrics -->
-        <div class="card">
-          <h2 class="card-title">Diversification Metrics</h2>
-          <div id="diversificationMetrics">
-            <div class="risk-item">
-              <span class="risk-label">Diversification Score</span>
-              <span id="metricDiversification" class="risk-value">--</span>
-            </div>
-            <div class="risk-item">
-              <span class="risk-label">Concentration Risk</span>
-              <span id="metricConcentration" class="risk-value">--</span>
-            </div>
-            <div class="risk-item">
-              <span class="risk-label">Avg Correlation</span>
-              <span id="metricAvgCorr" class="risk-value">--</span>
-            </div>
-            <div class="risk-item">
-              <span class="risk-label">Portfolio Volatility</span>
-              <span id="metricVolatility" class="risk-value">--</span>
-            </div>
-            <div class="risk-item">
-              <span class="risk-label">Value at Risk (95%)</span>
-              <span id="metricVaR" class="risk-value">--</span>
-            </div>
-          </div>
-        </div>
-
-        <!-- Recent Activity Log -->
-        <div class="card">
-          <h2 class="card-title">Recent Activity</h2>
-          <div id="activityLog" style="max-height: 250px; overflow-y: auto; font-size: 0.8rem;">
-            <div style="padding: 0.5rem; color: #6e7681;">No activity yet</div>
+        <div id="activeOrdersList" style="max-height: 300px; overflow-y: auto;">
+          <div class="empty-state" style="padding: 1rem;">
+            <div class="empty-state-icon">📋</div>
+            <p>No active orders</p>
           </div>
         </div>
       </div>
     </div>
   </div>
 
+  <!-- Configuration Modal -->
+  <div id="configModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 class="modal-title">Bot Configuration</h2>
+        <button class="modal-close" onclick="closeModal('configModal')">×</button>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Risk Strategy</label>
+        <select id="riskStrategy" class="form-select" onchange="updateRiskStrategy()">
+          <option value="conservative">Conservative (60% exposure, 40% reserve)</option>
+          <option value="moderate" selected>Moderate (75% exposure, 25% reserve)</option>
+          <option value="aggressive">Aggressive (90% exposure, 10% reserve)</option>
+        </select>
+        <div class="form-hint">Controls how much capital is allocated to trading vs. cash reserve</div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Add Trading Pair</label>
+        <div style="display: flex; gap: 0.5rem;">
+          <select id="newPairSymbol" class="form-select" style="flex: 1;">
+            <option value="DOGEUSDT">DOGE/USDT</option>
+            <option value="XLMUSDT">XLM/USDT</option>
+            <option value="ADAUSDT">ADA/USDT</option>
+            <option value="XRPUSDT">XRP/USDT</option>
+            <option value="BTCUSDT">BTC/USDT</option>
+            <option value="ETHUSDT">ETH/USDT</option>
+          </select>
+          <button class="btn btn-start" style="flex: none; padding: 0.75rem 1.5rem;" onclick="addPair()">Add Pair</button>
+        </div>
+        <div class="form-hint">Select a pair to add to your portfolio</div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Grid Configuration (Auto-calculated)</label>
+        <div style="background: #0f1729; border: 1px solid #2d3a5e; border-radius: 6px; padding: 1rem;">
+          <p style="font-size: 0.85rem; color: #8b9dc3; margin-bottom: 0.5rem;">
+            Grid levels are automatically calculated based on:
+          </p>
+          <ul style="font-size: 0.85rem; color: #e1e8f0; margin-left: 1.5rem;">
+            <li>Current price ± 20% range</li>
+            <li>15 grid levels per pair</li>
+            <li>Allocation based on risk strategy</li>
+            <li>Volatility-weighted position sizing</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Current Pairs</label>
+        <div id="currentPairsList">
+          <div class="empty-state" style="padding: 1rem;">
+            <p>No pairs configured</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Trade History Modal -->
+  <div id="tradesModal" class="modal">
+    <div class="modal-content" style="max-width: 1200px;">
+      <div class="modal-header">
+        <h2 class="modal-title">Trade History</h2>
+        <button class="modal-close" onclick="closeModal('tradesModal')">×</button>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Filter by Pair</label>
+        <select id="tradeFilterPair" class="form-select" onchange="loadTradeHistory()">
+          <option value="">All Pairs</option>
+        </select>
+      </div>
+
+      <div style="overflow-x: auto;">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Time</th>
+              <th>Pair</th>
+              <th>Side</th>
+              <th>Price</th>
+              <th>Quantity</th>
+              <th>Value</th>
+              <th>PnL</th>
+            </tr>
+          </thead>
+          <tbody id="tradeHistoryBody">
+            <tr>
+              <td colspan="7" class="empty-state">
+                <div class="empty-state-icon">📋</div>
+                <p>No trade history available</p>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Balance Modal -->
+  <div id="balanceModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 class="modal-title">Account Balances</h2>
+        <button class="modal-close" onclick="closeModal('balanceModal')">×</button>
+      </div>
+
+      <div id="balancesList">
+        <div class="empty-state">
+          <div class="empty-state-icon">💰</div>
+          <p>Loading balances...</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Analytics Modal -->
+  <div id="analyticsModal" class="modal">
+    <div class="modal-content" style="max-width: 1400px;">
+      <div class="modal-header">
+        <h2 class="modal-title">Performance Analytics</h2>
+        <button class="modal-close" onclick="closeModal('analyticsModal')">×</button>
+      </div>
+
+      <!-- Key Metrics Cards -->
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 2rem;">
+        <div class="metric-card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 1.5rem; border-radius: 8px;">
+          <div style="font-size: 0.85rem; color: rgba(255,255,255,0.8); margin-bottom: 0.5rem;">Total Return</div>
+          <div id="analyticsReturn" style="font-size: 2rem; font-weight: 700; color: white;">-</div>
+        </div>
+        <div class="metric-card" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); padding: 1.5rem; border-radius: 8px;">
+          <div style="font-size: 0.85rem; color: rgba(255,255,255,0.8); margin-bottom: 0.5rem;">Sharpe Ratio</div>
+          <div id="analyticsSharpe" style="font-size: 2rem; font-weight: 700; color: white;">-</div>
+        </div>
+        <div class="metric-card" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); padding: 1.5rem; border-radius: 8px;">
+          <div style="font-size: 0.85rem; color: rgba(255,255,255,0.8); margin-bottom: 0.5rem;">Win Rate</div>
+          <div id="analyticsWinRate" style="font-size: 2rem; font-weight: 700; color: white;">-</div>
+        </div>
+        <div class="metric-card" style="background: linear-gradient(135deg, #fa709a 0%, #fee140 100%); padding: 1.5rem; border-radius: 8px;">
+          <div style="font-size: 0.85rem; color: rgba(255,255,255,0.8); margin-bottom: 0.5rem;">Max Drawdown</div>
+          <div id="analyticsDrawdown" style="font-size: 2rem; font-weight: 700; color: white;">-</div>
+        </div>
+      </div>
+
+      <!-- Equity Curve Chart -->
+      <div style="background: #0f1729; border: 1px solid #2d3a5e; border-radius: 8px; padding: 1.5rem; margin-bottom: 2rem;">
+        <h3 style="margin: 0 0 1rem 0; color: #e1e8f0; font-size: 1.1rem;">Portfolio Equity Curve</h3>
+        <canvas id="equityCurveChart" style="max-height: 300px;"></canvas>
+      </div>
+
+      <!-- Performance Details Grid -->
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 2rem;">
+        <!-- Additional Metrics -->
+        <div style="background: #0f1729; border: 1px solid #2d3a5e; border-radius: 8px; padding: 1.5rem;">
+          <h3 style="margin: 0 0 1rem 0; color: #e1e8f0; font-size: 1rem;">Risk Metrics</h3>
+          <div id="riskMetrics">
+            <div class="empty-state"><p>Loading...</p></div>
+          </div>
+        </div>
+
+        <!-- Trade Statistics -->
+        <div style="background: #0f1729; border: 1px solid #2d3a5e; border-radius: 8px; padding: 1.5rem;">
+          <h3 style="margin: 0 0 1rem 0; color: #e1e8f0; font-size: 1rem;">Trade Statistics</h3>
+          <div id="tradeStats">
+            <div class="empty-state"><p>Loading...</p></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Pair Performance Table -->
+      <div style="background: #0f1729; border: 1px solid #2d3a5e; border-radius: 8px; padding: 1.5rem; margin-bottom: 1.5rem;">
+        <h3 style="margin: 0 0 1rem 0; color: #e1e8f0; font-size: 1rem;">Performance by Pair</h3>
+        <div style="overflow-x: auto;">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Pair</th>
+                <th>Trades</th>
+                <th>Win Rate</th>
+                <th>Total PnL</th>
+                <th>Avg Trade</th>
+                <th>Best Trade</th>
+                <th>Worst Trade</th>
+              </tr>
+            </thead>
+            <tbody id="pairPerformanceBody">
+              <tr>
+                <td colspan="7" class="empty-state">
+                  <p>Loading pair performance...</p>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Export Button -->
+      <div style="text-align: center;">
+        <button class="btn btn-start" onclick="exportTradesCsv()" style="padding: 0.75rem 2rem;">
+          Export Trades to CSV
+        </button>
+        <div class="form-hint" style="margin-top: 0.5rem;">Download complete trade history for tax reporting</div>
+      </div>
+    </div>
+  </div>
+
   <script>
+    // Configuration
     let ws = null;
-    let performanceChart = null;
-    let historicalChart = null;
-    let pairCharts = new Map();
-    let pnlData = [];
-    let isPortfolioMode = true;
-    let selectedPairs = ['DOGEUSDT', 'XLMUSDT'];
-    let isSimulationMode = true;
-    let isBotRunning = false;
+    let currentPair = null;
+    let currentPairs = [];
+    let isTogglingSimulation = false;
 
-    // Pair configurations (loaded from API)
-    let pairConfigs = {};
+    // Initialize
+    document.addEventListener('DOMContentLoaded', async () => {
+      await checkAuth();
+      await loadStatus();
+      await loadActiveOrders();
+      connectWebSocket();
+      setInterval(loadStatus, 5000);
+      setInterval(loadActiveOrders, 10000); // Refresh orders every 10 seconds
+    });
 
-    // ============================================================================
-    // TAB MANAGEMENT
-    // ============================================================================
+    // WebSocket Connection
+    function connectWebSocket() {
+      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const wsUrl = `${protocol}//${window.location.host}`;
 
-    function switchTab(tabName) {
-      // Hide all tabs
-      document.querySelectorAll('.tab-content').forEach(tab => {
-        tab.classList.remove('active');
-      });
-      document.querySelectorAll('.tab-button').forEach(btn => {
-        btn.classList.remove('active');
-      });
+      ws = new WebSocket(wsUrl);
 
-      // Show selected tab
-      document.getElementById(`tab-${tabName}`).classList.add('active');
-      event.target.classList.add('active');
+      ws.onopen = () => {
+        console.log('WebSocket connected');
+        addActivity('info', 'System', 'Connected to live feed');
+      };
 
-      // Load data for specific tabs
-      if (tabName === 'trades') {
-        loadTradeHistory();
-        loadTradeStats();
-      } else if (tabName === 'orders') {
-        loadActiveOrders();
-      } else if (tabName === 'risk') {
-        loadRiskEvents();
-      } else if (tabName === 'analytics') {
-        loadCorrelationData();
-        loadHistoricalPerformance();
+      ws.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+        handleWebSocketMessage(data);
+      };
+
+      ws.onclose = () => {
+        console.log('WebSocket disconnected');
+        setTimeout(connectWebSocket, 5000);
+      };
+    }
+
+    // Handle WebSocket Messages
+    function handleWebSocketMessage(data) {
+      if (data.type === 'portfolio') {
+        updatePortfolioStatus(data.data);
+      } else if (data.type === 'pair') {
+        updatePairStatus(data.data);
+      } else if (data.type === 'order') {
+        handleOrderUpdate(data.data);
+      } else if (data.type === 'trade') {
+        handleTradeUpdate(data.data);
       }
     }
 
-    // ============================================================================
-    // CHART INITIALIZATION
-    // ============================================================================
-
-    function initCharts() {
-      // Main performance chart
-      const ctx = document.getElementById('performanceChart').getContext('2d');
-      performanceChart = new Chart(ctx, {
-        type: 'line',
-        data: {
-          labels: [],
-          datasets: [{
-            label: 'Portfolio Value',
-            data: [],
-            borderColor: '#58a6ff',
-            backgroundColor: 'rgba(88, 166, 255, 0.1)',
-            fill: true,
-            tension: 0.4,
-            pointRadius: 0,
-          }]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          scales: {
-            x: { display: false },
-            y: {
-              grid: { color: '#21262d' },
-              ticks: { color: '#8b949e' }
-            }
-          },
-          plugins: {
-            legend: { display: false }
-          }
-        }
-      });
-
-      // Historical performance chart
-      const hCtx = document.getElementById('historicalChart').getContext('2d');
-      historicalChart = new Chart(hCtx, {
-        type: 'line',
-        data: {
-          labels: [],
-          datasets: [{
-            label: 'Portfolio Value',
-            data: [],
-            borderColor: '#3fb950',
-            backgroundColor: 'rgba(63, 185, 80, 0.1)',
-            fill: true,
-            tension: 0.4,
-          }]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          scales: {
-            x: {
-              grid: { color: '#21262d' },
-              ticks: { color: '#8b949e' }
-            },
-            y: {
-              grid: { color: '#21262d' },
-              ticks: { color: '#8b949e' }
-            }
-          },
-          plugins: {
-            legend: { display: false }
-          }
-        }
-      });
-    }
-
-    function updateChart(value) {
-      const now = new Date().toLocaleTimeString();
-      pnlData.push({ time: now, value });
-      if (pnlData.length > 60) pnlData.shift();
-
-      performanceChart.data.labels = pnlData.map(d => d.time);
-      performanceChart.data.datasets[0].data = pnlData.map(d => d.value);
-      performanceChart.update('none');
-    }
-
-    function createPairChart(symbol, containerId) {
-      const canvas = document.createElement('canvas');
-      const container = document.getElementById(containerId);
-      container.innerHTML = '';
-      container.appendChild(canvas);
-
-      const chart = new Chart(canvas.getContext('2d'), {
-        type: 'line',
-        data: {
-          labels: [],
-          datasets: [{
-            label: 'Price',
-            data: [],
-            borderColor: '#58a6ff',
-            backgroundColor: 'rgba(88, 166, 255, 0.1)',
-            fill: true,
-            tension: 0.4,
-            pointRadius: 2,
-          }]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          scales: {
-            x: {
-              grid: { color: '#21262d' },
-              ticks: { color: '#8b949e', maxTicksLimit: 8 }
-            },
-            y: {
-              grid: { color: '#21262d' },
-              ticks: { color: '#8b949e' }
-            }
-          },
-          plugins: {
-            legend: { display: false }
-          }
-        }
-      });
-
-      pairCharts.set(symbol, chart);
-      return chart;
-    }
-
-    // ============================================================================
-    // DATA FORMATTING
-    // ============================================================================
-
-    function formatNumber(num, decimals = 2) {
-      return new Intl.NumberFormat('en-US', {
-        minimumFractionDigits: decimals,
-        maximumFractionDigits: decimals
-      }).format(num);
-    }
-
-    function formatDateTime(date) {
-      if (typeof date === 'string') date = new Date(date);
-      return date.toLocaleString('en-US', {
-        month: 'short',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit'
-      });
-    }
-
-    // ============================================================================
-    // UI UPDATES
-    // ============================================================================
-
-    function updateDataFeedUI(dataFeed) {
-      const badge = document.getElementById('dataFeedBadge');
-      const label = document.getElementById('dataFeedLabel');
-      const dot = badge.querySelector('.feed-dot');
-
-      if (!dataFeed) {
-        badge.className = 'data-feed-badge disconnected';
-        label.textContent = 'OFFLINE';
-        dot.classList.remove('live');
-        return;
-      }
-
-      if (dataFeed.type === 'websocket' && dataFeed.connected) {
-        badge.className = 'data-feed-badge websocket';
-        label.textContent = 'REAL-TIME';
-        dot.classList.add('live');
-        badge.title = 'WebSocket: Real-time price updates';
-      } else if (dataFeed.type === 'polling') {
-        badge.className = 'data-feed-badge polling';
-        label.textContent = 'POLLING';
-        dot.classList.remove('live');
-        badge.title = 'REST API: Polling every 5 seconds';
-      } else {
-        badge.className = 'data-feed-badge disconnected';
-        label.textContent = dataFeed.connected ? 'CONNECTING...' : 'DISCONNECTED';
-        dot.classList.remove('live');
-      }
-    }
-
-    function updateSimulationModeUI(enabled) {
-      isSimulationMode = enabled;
-      const badge = document.getElementById('simulationBadge');
-      const label = document.getElementById('simulationLabel');
-      const toggle = document.getElementById('simulationToggle');
-      const warning = document.getElementById('liveWarning');
-
-      if (enabled) {
-        badge.className = 'simulation-badge simulation-on';
-        label.textContent = 'SIMULATION';
-        toggle.classList.add('active');
-        warning.style.display = 'none';
-      } else {
-        badge.className = 'simulation-badge simulation-off';
-        label.textContent = 'LIVE TRADING';
-        toggle.classList.remove('active');
-        warning.style.display = 'flex';
-      }
-    }
-
-    async function toggleSimulationMode() {
-      if (isBotRunning) {
-        alert('Cannot change trading mode while bot is running. Stop the bot first.');
-        return;
-      }
-
-      const newMode = !isSimulationMode;
-
-      if (!newMode) {
-        const confirmed = confirm(
-          '⚠️ WARNING: You are about to enable LIVE TRADING MODE.\n\n' +
-          'This will place REAL orders on Binance.US using REAL money.\n\n' +
-          'Are you sure you want to continue?'
-        );
-        if (!confirmed) return;
-      }
-
-      try {
-        // Update simulation mode on backend
-        const res = await fetchWithAuth('/api/simulation', {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ enabled: newMode })
-        });
-
-        if (!res.ok) throw new Error('Failed to update simulation mode');
-
-        updateSimulationModeUI(newMode);
-        addActivity(`Trading mode changed to ${newMode ? 'SIMULATION' : 'LIVE'}`, newMode ? 'info' : 'error');
-      } catch (err) {
-        console.error('Failed to toggle simulation mode:', err);
-        alert('Failed to change trading mode. Please try again.');
-      }
-    }
-
-    // ============================================================================
-    // PORTFOLIO STATUS
-    // ============================================================================
-
+    // Update Portfolio Status
     function updatePortfolioStatus(data) {
-      const badge = document.getElementById('statusBadge');
-      badge.textContent = data.status?.toUpperCase() || 'STOPPED';
-      badge.className = `status-badge status-${data.status || 'stopped'}`;
+      document.getElementById('totalCapital').textContent = `$${data.totalCapital?.toFixed(2) || '0'}`;
+      document.getElementById('allocatedCapital').textContent = `$${data.allocatedCapital?.toFixed(2) || '0'}`;
+      document.getElementById('totalPnl').textContent = `$${data.totalPnL?.toFixed(2) || '0'}`;
+      document.getElementById('activePairs').textContent = data.pairs?.length || 0;
 
-      // Update mode badge based on actual trading mode
-      const modeBadge = document.getElementById('modeBadge');
-      modeBadge.textContent = isPortfolioMode ? 'PORTFOLIO' : 'SINGLE PAIR';
-      modeBadge.style.background = isPortfolioMode ? '#388bfd20' : '#6e40c920';
-      modeBadge.style.color = isPortfolioMode ? '#58a6ff' : '#a371f7';
+      const pnlElement = document.getElementById('totalPnl');
+      pnlElement.className = 'metric-value';
+      if (data.totalPnL > 0) pnlElement.classList.add('positive');
+      else if (data.totalPnL < 0) pnlElement.classList.add('negative');
 
-      if (data.dataFeed) {
-        updateDataFeedUI(data.dataFeed);
+      if (data.pairs && data.pairs.length > 0) {
+        updatePairsList(data.pairs);
       }
+    }
 
-      const isRunning = data.status === 'running';
-      isBotRunning = isRunning;
-      document.getElementById('startPortfolioBtn').disabled = isRunning;
-      document.getElementById('startSingleBtn').disabled = isRunning;
-      document.getElementById('stopBtn').disabled = !isRunning;
-      document.getElementById('startPanel').style.display = isRunning ? 'none' : 'block';
-      document.getElementById('simulationBadge').style.pointerEvents = isRunning ? 'none' : 'auto';
-      document.getElementById('simulationBadge').style.opacity = isRunning ? '0.6' : '1';
-
-      if (data.pairs) {
-        let totalPnl = 0;
-        let totalTrades = 0;
-
-        const container = document.getElementById('pairsContainer');
-        if (data.pairs.length === 0) {
-          container.innerHTML = `
-            <div class="pair-card">
-              <div class="pair-header">
-                <span class="pair-symbol">No pairs active</span>
-              </div>
-              <p style="font-size: 0.8rem; color: #6e7681;">Start the portfolio bot to begin trading</p>
+    // Update Pairs List
+    function updatePairsList(pairs) {
+      currentPairs = pairs;
+      const container = document.getElementById('pairsList');
+      container.innerHTML = pairs.map(pair => `
+        <div class="pair-item ${currentPair === pair.symbol ? 'selected' : ''}"
+             data-symbol="${pair.symbol}"
+             onclick="selectPair('${pair.symbol}')"
+             style="cursor: pointer;">
+          <div class="pair-header">
+            <span class="pair-symbol">${pair.symbol}</span>
+            <span class="pair-price">$${pair.currentPrice?.toFixed(6) || '0'}</span>
+          </div>
+          <div class="pair-stats">
+            <div class="pair-stat">
+              <span class="pair-stat-label">PnL:</span>
+              <span class="pair-stat-value" style="color: ${pair.pnl >= 0 ? '#38ef7d' : '#f5576c'}">
+                $${pair.pnl?.toFixed(2) || '0'}
+              </span>
             </div>
-          `;
+            <div class="pair-stat">
+              <span class="pair-stat-label">Orders:</span>
+              <span class="pair-stat-value">${pair.activeOrders || 0}</span>
+            </div>
+          </div>
+        </div>
+      `).join('');
+
+      // Auto-select first pair if none selected
+      if (!currentPair && pairs.length > 0) {
+        setTimeout(() => selectPair(pairs[0].symbol), 100);
+      }
+    }
+
+    // Select Pair
+    async function selectPair(symbol) {
+      console.log('Selecting pair:', symbol);
+
+      currentPair = symbol;
+      document.getElementById('selectedPair').textContent = symbol;
+
+      // Update selection UI - remove selected from all, add to matching symbol
+      document.querySelectorAll('.pair-item').forEach(item => {
+        if (item.dataset.symbol === symbol) {
+          item.classList.add('selected');
         } else {
-          container.innerHTML = data.pairs.map(pair => {
-            const pnl = pair.pnl || 0;
-            totalPnl += pnl;
-            totalTrades += pair.trades || 0;
-
-            return `
-              <div class="pair-card ${pair.status === 'paused' ? 'pair-paused' : ''}">
-                <div class="pair-header">
-                  <span class="pair-symbol">${pair.symbol}</span>
-                  <span class="pair-status pair-status-${pair.status || 'stopped'}">${pair.status || 'stopped'}</span>
-                </div>
-                <div class="pair-stats">
-                  <div class="pair-stat">
-                    <div class="pair-stat-value">$${formatNumber(pair.price || 0, 4)}</div>
-                    <div class="pair-stat-label">Price</div>
-                  </div>
-                  <div class="pair-stat">
-                    <div class="pair-stat-value ${pnl >= 0 ? 'positive' : 'negative'}">$${formatNumber(pnl)}</div>
-                    <div class="pair-stat-label">PnL</div>
-                  </div>
-                  <div class="pair-stat">
-                    <div class="pair-stat-value">${pair.trades || 0}</div>
-                    <div class="pair-stat-label">Trades</div>
-                  </div>
-                </div>
-              </div>
-            `;
-          }).join('');
-
-          // Update pair charts if on grids tab
-          updatePairCharts(data.pairs);
+          item.classList.remove('selected');
         }
+      });
 
-        document.getElementById('totalPnl').textContent = `$${formatNumber(data.totalPnl || totalPnl)}`;
-        document.getElementById('totalPnl').className = `stat-value ${(data.totalPnl || totalPnl) >= 0 ? 'positive' : 'negative'}`;
-        document.getElementById('totalTrades').textContent = data.totalTrades || totalTrades;
-      }
-
-      if (data.riskStatus) {
-        updateRiskStatus(data.riskStatus);
-      }
-
-      const totalValue = parseFloat(document.getElementById('capitalInput').value) + (data.totalPnl || 0);
-      updateChart(totalValue);
+      // Load grid levels for this pair
+      await loadGridLevels(symbol);
     }
 
-    function updateRiskStatus(riskStatus) {
-      document.getElementById('riskStrategy').textContent = riskStatus.strategy || 'Moderate';
-
-      const dailyPnlEl = document.getElementById('dailyPnl');
-      dailyPnlEl.textContent = `$${formatNumber(riskStatus.dailyPnl || 0)}`;
-      dailyPnlEl.className = `risk-value ${(riskStatus.dailyPnl || 0) >= 0 ? 'positive' : 'negative'}`;
-
-      document.getElementById('drawdown').textContent = `${formatNumber(riskStatus.drawdown || 0)}%`;
-      document.getElementById('consecutiveLosses').textContent = riskStatus.consecutiveLosses || 0;
-
-      const isPaused = riskStatus.isPaused;
-      const riskEl = document.getElementById('riskStatus');
-      const riskFill = document.getElementById('riskFill');
-
-      if (isPaused) {
-        riskEl.textContent = 'PAUSED: ' + (riskStatus.pauseReason || '');
-        riskFill.style.width = '100%';
-        riskFill.className = 'risk-fill risk-high';
-        riskEl.style.color = '#f85149';
-      } else if (riskStatus.drawdown > 10) {
-        riskEl.textContent = 'WARNING';
-        riskFill.style.width = '70%';
-        riskFill.className = 'risk-fill risk-moderate';
-        riskEl.style.color = '#d29922';
-      } else {
-        riskEl.textContent = 'NORMAL';
-        riskFill.style.width = '20%';
-        riskFill.className = 'risk-fill risk-normal';
-        riskEl.style.color = '#3fb950';
+    // Load Grid Levels
+    async function loadGridLevels(symbol) {
+      try {
+        const response = await fetch(`/api/grid?pair=${symbol}`, {
+          headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+        });
+        const data = await response.json();
+        renderGrid(data);
+      } catch (error) {
+        console.error('Error loading grid:', error);
       }
     }
 
-    function updatePairCharts(pairs) {
-      const container = document.getElementById('pairChartsContainer');
-      if (!pairs || pairs.length === 0) {
-        container.innerHTML = `
-          <div class="empty-state">
-            <div class="empty-state-icon">📊</div>
-            <p>No active pairs to display</p>
+    // Render Grid Visualization
+    function renderGrid(data) {
+      const canvas = document.getElementById('gridCanvas');
+
+      console.log('Rendering grid:', data);
+
+      // Check if we have valid data
+      if (!data || !data.levels || data.levels.length === 0) {
+        canvas.innerHTML = `
+          <div class="empty-state" style="padding-top: 8rem;">
+            <div class="empty-state-icon">📈</div>
+            <p>No grid levels available</p>
+            <p style="font-size: 0.75rem; margin-top: 0.5rem;">
+              ${currentPair ? `Start trading ${currentPair} to see grid levels` : 'Select a pair to view grid'}
+            </p>
           </div>
         `;
         return;
       }
 
-      container.innerHTML = pairs.map(pair => `
-        <div style="background: #21262d; border-radius: 6px; padding: 1rem;">
-          <h3 style="font-size: 0.9rem; color: #58a6ff; margin-bottom: 0.5rem;">${pair.symbol}</h3>
-          <div id="chart-${pair.symbol}" style="height: 150px;"></div>
+      const levels = data.levels;
+      const currentPrice = data.currentPrice;
+
+      if (!currentPrice || currentPrice === 0) {
+        canvas.innerHTML = `
+          <div class="empty-state" style="padding-top: 8rem;">
+            <div class="empty-state-icon">⏳</div>
+            <p>Loading price data...</p>
+          </div>
+        `;
+        return;
+      }
+
+      const upper = Math.max(...levels.map(l => l.price));
+      const lower = Math.min(...levels.map(l => l.price));
+      const range = upper - lower;
+
+      if (range === 0) {
+        canvas.innerHTML = `
+          <div class="empty-state" style="padding-top: 8rem;">
+            <div class="empty-state-icon">⚠️</div>
+            <p>Invalid grid range</p>
+          </div>
+        `;
+        return;
+      }
+
+      const pricePercent = ((currentPrice - lower) / range) * 100;
+
+      canvas.innerHTML = `
+        <div class="price-line" style="bottom: ${pricePercent}%">
+          <div class="price-label">$${currentPrice.toFixed(6)}</div>
         </div>
-      `).join('');
-
-      pairs.forEach(pair => {
-        createPairChart(pair.symbol, `chart-${pair.symbol}`);
-      });
-    }
-
-    // ============================================================================
-    // TRADE HISTORY
-    // ============================================================================
-
-    async function loadTradeHistory() {
-      try {
-        const symbol = document.getElementById('tradeFilterPair').value;
-        const limit = document.getElementById('tradeFilterLimit').value;
-
-        const params = new URLSearchParams();
-        if (symbol) params.append('symbol', symbol);
-        if (limit) params.append('limit', limit);
-
-        const res = await fetch(`/api/trades/history?${params}`);
-        const trades = await res.json();
-
-        const tbody = document.getElementById('tradeHistoryBody');
-
-        if (!trades || trades.length === 0) {
-          tbody.innerHTML = `
-            <tr>
-              <td colspan="8" class="empty-state">
-                <div class="empty-state-icon">📋</div>
-                <p>No trade history available</p>
-              </td>
-            </tr>
+        ${levels.map(level => {
+          const percent = ((level.price - lower) / range) * 100;
+          const isFilled = level.status === 'filled';
+          const isBuy = level.type === 'buy';
+          return `
+            <div class="grid-line ${level.type} ${isFilled ? 'filled' : ''}" style="bottom: ${percent}%">
+              <span class="grid-line-label">$${level.price.toFixed(6)} ${isFilled ? '✓' : ''}</span>
+            </div>
           `;
-          return;
-        }
+        }).join('')}
+      `;
+    }
 
-        tbody.innerHTML = trades.map(trade => `
-          <tr>
-            <td>${formatDateTime(trade.executedAt || trade.createdAt)}</td>
-            <td><strong>${trade.symbol}</strong></td>
-            <td><span class="badge badge-${trade.side.toLowerCase()}">${trade.side}</span></td>
-            <td>$${formatNumber(trade.price, 4)}</td>
-            <td>${formatNumber(trade.quantity, 4)}</td>
-            <td>$${formatNumber(trade.price * trade.quantity)}</td>
-            <td class="${trade.realizedPnl >= 0 ? 'positive' : 'negative'}">$${formatNumber(trade.realizedPnl)}</td>
-            <td>${trade.gridLevel !== undefined ? '#' + trade.gridLevel : '--'}</td>
-          </tr>
-        `).join('');
+    // Handle Order Update
+    function handleOrderUpdate(order) {
+      const action = order.status === 'filled' ? 'filled' : 'placed';
+      const type = order.side.toLowerCase();
 
-        // Update filter dropdown with available pairs
-        updatePairFilter(trades);
-
-      } catch (err) {
-        console.error('Failed to load trade history:', err);
-        addActivity('Failed to load trade history', 'error');
+      // Different messages for placed vs filled
+      if (order.status === 'filled') {
+        addActivity(type, order.symbol,
+          `✅ ${order.side} order FILLED at $${order.price.toFixed(6)} - Order executed!`
+        );
+        document.getElementById('lastAction').textContent = `Filled ${order.side} @ $${order.price.toFixed(6)}`;
+      } else {
+        addActivity(type, order.symbol,
+          `📝 ${order.side} order PLACED at $${order.price.toFixed(6)} - Waiting for execution`
+        );
+        document.getElementById('lastAction').textContent = `Placed ${order.side} @ $${order.price.toFixed(6)}`;
       }
+
+      // Refresh orders list
+      loadActiveOrders();
     }
 
-    function updatePairFilter(trades) {
-      const select = document.getElementById('tradeFilterPair');
-      const currentValue = select.value;
-
-      const pairs = [...new Set(trades.map(t => t.symbol))];
-
-      select.innerHTML = '<option value="">All Pairs</option>' +
-        pairs.map(p => `<option value="${p}">${p}</option>`).join('');
-
-      select.value = currentValue;
-    }
-
-    async function loadTradeStats() {
-      try {
-        const res = await fetchWithAuth('/api/trades/stats');
-        const stats = await res.json();
-
-        document.getElementById('statsTotalTrades').textContent = stats.totalTrades || 0;
-        document.getElementById('statsWinningTrades').textContent = stats.winningTrades || 0;
-        document.getElementById('statsLosingTrades').textContent = stats.losingTrades || 0;
-        document.getElementById('statsWinRate').textContent = `${formatNumber(stats.winRate || 0)}%`;
-
-        const totalPnlEl = document.getElementById('statsTotalPnl');
-        totalPnlEl.textContent = `$${formatNumber(stats.totalPnl || 0)}`;
-        totalPnlEl.className = `risk-value ${(stats.totalPnl || 0) >= 0 ? 'positive' : 'negative'}`;
-
-        const avgPnlEl = document.getElementById('statsAvgPnl');
-        avgPnlEl.textContent = `$${formatNumber(stats.avgPnl || 0)}`;
-        avgPnlEl.className = `risk-value ${(stats.avgPnl || 0) >= 0 ? 'positive' : 'negative'}`;
-
-        // Update overview stats
-        document.getElementById('winRate').textContent = `${formatNumber(stats.winRate || 0)}%`;
-        document.getElementById('avgPnl').textContent = `$${formatNumber(stats.avgPnl || 0)}`;
-        document.getElementById('bestTrade').textContent = `$${formatNumber(stats.bestTrade || 0)}`;
-        document.getElementById('worstTrade').textContent = `$${formatNumber(stats.worstTrade || 0)}`;
-
-      } catch (err) {
-        console.error('Failed to load trade stats:', err);
-      }
-    }
-
-    // ============================================================================
-    // ACTIVE ORDERS
-    // ============================================================================
-
+    // Load Active Orders
     async function loadActiveOrders() {
       try {
-        const res = await fetchWithAuth('/api/orders');
-        const orders = await res.json();
+        const response = await fetch('/api/orders', {
+          headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+        });
+        const data = await response.json();
 
-        const tbody = document.getElementById('activeOrdersBody');
-
-        // Handle both portfolio mode (object with symbols) and single mode (array)
-        let ordersList = [];
-        if (Array.isArray(orders)) {
-          ordersList = orders;
-        } else if (typeof orders === 'object') {
+        // Handle both single array and object with pairs
+        let orders = [];
+        if (Array.isArray(data)) {
+          orders = data;
+        } else if (typeof data === 'object') {
           // Portfolio mode - flatten all orders
-          for (const [symbol, symbolOrders] of Object.entries(orders)) {
-            ordersList = ordersList.concat(symbolOrders);
-          }
+          orders = Object.entries(data).flatMap(([symbol, pairOrders]) =>
+            Array.isArray(pairOrders) ? pairOrders.map(o => ({ ...o, symbol })) : []
+          );
         }
 
-        if (ordersList.length === 0) {
-          tbody.innerHTML = `
-            <tr>
-              <td colspan="10" class="empty-state">
-                <div class="empty-state-icon">📝</div>
-                <p>No active orders</p>
-              </td>
-            </tr>
-          `;
-
-          document.getElementById('totalOpenOrders').textContent = '0';
-          document.getElementById('totalBuyOrders').textContent = '0';
-          document.getElementById('totalSellOrders').textContent = '0';
-          document.getElementById('totalOrderValue').textContent = '$0';
-          return;
-        }
-
-        tbody.innerHTML = ordersList.map(order => `
-          <tr>
-            <td><code>${order.orderId.substring(0, 8)}...</code></td>
-            <td><strong>${order.tradingPair}</strong></td>
-            <td><span class="badge badge-${order.side.toLowerCase()}">${order.side}</span></td>
-            <td>${order.orderType}</td>
-            <td>$${formatNumber(order.price, 4)}</td>
-            <td>${formatNumber(order.quantity, 4)}</td>
-            <td>${formatNumber(order.filledQuantity || 0, 4)}</td>
-            <td><span class="badge badge-${order.status.toLowerCase()}">${order.status}</span></td>
-            <td>${order.gridLevel !== undefined ? '#' + order.gridLevel : '--'}</td>
-            <td>${formatDateTime(order.createdAt)}</td>
-          </tr>
-        `).join('');
-
-        // Update summary
-        const buyOrders = ordersList.filter(o => o.side === 'BUY').length;
-        const sellOrders = ordersList.filter(o => o.side === 'SELL').length;
-        const totalValue = ordersList.reduce((sum, o) => sum + (o.price * o.quantity), 0);
-
-        document.getElementById('totalOpenOrders').textContent = ordersList.length;
-        document.getElementById('totalBuyOrders').textContent = buyOrders;
-        document.getElementById('totalSellOrders').textContent = sellOrders;
-        document.getElementById('totalOrderValue').textContent = `$${formatNumber(totalValue)}`;
-
-      } catch (err) {
-        console.error('Failed to load active orders:', err);
-        addActivity('Failed to load active orders', 'error');
+        renderActiveOrders(orders);
+      } catch (error) {
+        console.error('Error loading active orders:', error);
       }
     }
 
-    // ============================================================================
-    // RISK EVENTS
-    // ============================================================================
+    // Render Active Orders
+    function renderActiveOrders(orders) {
+      const container = document.getElementById('activeOrdersList');
+      const countElement = document.getElementById('orderCount');
 
-    async function loadRiskEvents() {
-      try {
-        const res = await fetchWithAuth('/api/risk/events?limit=50');
-        const events = await res.json();
+      if (!orders || orders.length === 0) {
+        container.innerHTML = '<div class="empty-state" style="padding: 1rem;"><div class="empty-state-icon">📋</div><p>No active orders</p><p style="font-size: 0.75rem; margin-top: 0.5rem; color: #8b9dc3;">Orders will appear when bot starts trading</p></div>';
+        countElement.textContent = '0';
+        return;
+      }
 
-        const container = document.getElementById('riskEventsContainer');
+      countElement.textContent = orders.length.toString();
 
-        if (!events || events.length === 0) {
-          container.innerHTML = `
-            <div class="empty-state">
-              <div class="empty-state-icon">🛡️</div>
-              <p>No risk events recorded</p>
+      // Group by symbol
+      const bySymbol = orders.reduce((acc, order) => {
+        const symbol = order.symbol || order.tradingPair || 'Unknown';
+        if (!acc[symbol]) acc[symbol] = [];
+        acc[symbol].push(order);
+        return acc;
+      }, {});
+
+      container.innerHTML = Object.entries(bySymbol).map(([symbol, symbolOrders]) => {
+        const buyOrders = symbolOrders.filter(o => o.side === 'BUY').length;
+        const sellOrders = symbolOrders.filter(o => o.side === 'SELL').length;
+
+        return `
+          <div style="margin-bottom: 1rem;">
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.5rem; background: #0f1729; border-radius: 4px; margin-bottom: 0.5rem;">
+              <span style="font-weight: 700; color: #4facfe;">${symbol}</span>
+              <span style="font-size: 0.75rem; color: #8b9dc3;">
+                <span style="color: #38ef7d;">${buyOrders} BUY</span> ·
+                <span style="color: #f5576c;">${sellOrders} SELL</span>
+              </span>
             </div>
-          `;
-          return;
-        }
-
-        container.innerHTML = events.map(event => {
-          const severity = event.severity || 'info';
-          const severityClass = severity === 'critical' ? 'critical' : severity === 'warning' ? 'warning' : '';
-
-          return `
-            <div class="timeline-item ${severityClass}">
-              <div class="timeline-time">${formatDateTime(event.timestamp)}</div>
-              <div class="timeline-message">
-                <strong>${event.eventType || 'Event'}</strong>: ${event.message || event.reason}
+            ${symbolOrders.slice(0, 5).map(order => `
+              <div class="order-item ${order.side.toLowerCase()}" style="font-size: 0.75rem; padding: 0.5rem; margin-bottom: 0.25rem;">
+                <div class="order-header">
+                  <span class="order-side ${order.side.toLowerCase()}">${order.side}</span>
+                  <span class="order-price">$${order.price.toFixed(6)}</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; font-size: 0.7rem; color: #8b9dc3; margin-top: 0.25rem;">
+                  <span>${order.quantity || order.origQty} units</span>
+                  <span>⏳ Pending</span>
+                </div>
               </div>
-            </div>
-          `;
-        }).join('');
-
-        // Update risk limits display
-        if (events.length > 0 && events[0].limits) {
-          updateRiskLimits(events[0].limits);
-        }
-
-      } catch (err) {
-        console.error('Failed to load risk events:', err);
-      }
-
-      // Load risk limits from API (separate from events)
-      try {
-        const limitsRes = await fetch('/api/risk/limits');
-        const limits = await limitsRes.json();
-        if (limits) {
-          updateRiskLimits(limits);
-        }
-      } catch (err) {
-        console.error('Failed to load risk limits:', err);
-      }
-    }
-
-    function updateRiskLimits(limits) {
-      document.getElementById('limitMaxPosition').textContent = `${limits.maxPositionPerPair || '--'}%`;
-      document.getElementById('limitMaxExposure').textContent = `${limits.maxTotalExposure || '--'}%`;
-      document.getElementById('limitMinCash').textContent = `${limits.minCashReserve || '--'}%`;
-      document.getElementById('limitMaxDailyLoss').textContent = `$${limits.maxDailyLoss || '--'}`;
-      document.getElementById('limitMaxDrawdown').textContent = `${limits.maxDrawdownPercent || '--'}%`;
-      document.getElementById('limitConsecutiveLosses').textContent = limits.pauseOnConsecutiveLosses || '--';
-    }
-
-    // ============================================================================
-    // REBALANCING
-    // ============================================================================
-
-    async function loadRebalanceSuggestions() {
-      try {
-        const res = await fetchWithAuth('/api/portfolio');
-        const portfolio = await res.json();
-
-        const container = document.getElementById('rebalanceContainer');
-
-        // Check if rebalancing is needed (simplified - in production would call dedicated endpoint)
-        if (!portfolio.pairs || portfolio.pairs.length === 0) {
-          container.innerHTML = `
-            <div class="empty-state">
-              <p style="font-size: 0.85rem;">No active positions to rebalance</p>
-            </div>
-          `;
-          return;
-        }
-
-        // Simulate rebalancing suggestions (in production, would come from backend)
-        const targetAllocation = 100 / portfolio.pairs.length;
-        const suggestions = portfolio.pairs
-          .filter(p => {
-            const currentAlloc = (p.positionValue / portfolio.totalCapital) * 100;
-            const deviation = Math.abs(currentAlloc - targetAllocation);
-            return deviation > 5; // Only show if >5% deviation
-          })
-          .map(p => {
-            const currentAlloc = (p.positionValue / portfolio.totalCapital) * 100;
-            return {
-              symbol: p.symbol,
-              currentAllocation: currentAlloc,
-              targetAllocation: targetAllocation,
-              type: currentAlloc > targetAllocation ? 'decrease' : 'increase'
-            };
-          });
-
-        if (suggestions.length === 0) {
-          container.innerHTML = `
-            <div class="empty-state">
-              <p style="font-size: 0.85rem; color: #3fb950;">✓ Portfolio is balanced</p>
-            </div>
-          `;
-          return;
-        }
-
-        container.innerHTML = suggestions.map(action => `
-          <div class="rebalance-action">
-            <div class="rebalance-info">
-              <div class="rebalance-symbol">${action.symbol}</div>
-              <div class="rebalance-details">
-                ${formatNumber(action.currentAllocation, 1)}%
-                <span class="rebalance-arrow">→</span>
-                ${formatNumber(action.targetAllocation, 1)}%
-                (${action.type === 'increase' ? '+' : ''}${formatNumber(action.targetAllocation - action.currentAllocation, 1)}%)
+            `).join('')}
+            ${symbolOrders.length > 5 ? `
+              <div style="text-align: center; font-size: 0.7rem; color: #8b9dc3; padding: 0.25rem;">
+                +${symbolOrders.length - 5} more orders
               </div>
-            </div>
-            <button class="btn btn-small btn-secondary" onclick="executeRebalance('${action.symbol}')">
-              ${action.type === 'increase' ? '📈' : '📉'} ${action.type}
-            </button>
+            ` : ''}
           </div>
-        `).join('');
+        `;
+      }).join('');
+    }
 
-      } catch (err) {
-        console.error('Failed to load rebalancing suggestions:', err);
+    // Handle Trade Update
+    function handleTradeUpdate(trade) {
+      const type = trade.side.toLowerCase();
+      const profit = trade.pnl || 0;
+      const profitText = profit > 0 ? `+$${profit.toFixed(2)} profit` : profit < 0 ? `$${Math.abs(profit).toFixed(2)} loss` : '';
+
+      addActivity(type, trade.symbol, `${trade.side} executed at $${trade.price.toFixed(6)} - ${profitText}`);
+      document.getElementById('botAction').textContent = `Just ${trade.side.toLowerCase()} ${trade.symbol}`;
+
+      loadStatus();
+      if (currentPair === trade.symbol) {
+        loadGridLevels(currentPair);
       }
     }
 
-    function executeRebalance(symbol) {
-      alert(`Rebalancing ${symbol} - This would be implemented via API call`);
-    }
-
-    // ============================================================================
-    // CORRELATION & ANALYTICS
-    // ============================================================================
-
-    async function loadCorrelationData() {
-      try {
-        const res = await fetchWithAuth('/api/correlation');
-        const data = await res.json();
-
-        if (!data || !data.matrix) {
-          return;
-        }
-
-        // API returns { matrix: { pairs: [], matrix: [][], updatedAt: Date }, summary: {...} }
-        const correlationData = data.matrix;
-        const pairs = correlationData.pairs || [];
-        const matrix = correlationData.matrix || [];
-
-        if (!matrix || matrix.length === 0 || pairs.length === 0) {
-          return;
-        }
-
-        const table = document.getElementById('correlationMatrix');
-
-        let html = '<thead><tr><th></th>';
-        pairs.forEach(p => html += `<th>${p.replace('USDT', '')}</th>`);
-        html += '</tr></thead><tbody>';
-
-        matrix.forEach((row, i) => {
-          html += `<tr><td><strong>${pairs[i].replace('USDT', '')}</strong></td>`;
-          row.forEach(corr => {
-            const corrClass = Math.abs(corr) > 0.7 ? 'corr-high' : Math.abs(corr) > 0.5 ? 'corr-medium' : 'corr-low';
-            html += `<td class="${corrClass}">${formatNumber(corr, 2)}</td>`;
-          });
-          html += '</tr>';
-        });
-
-        html += '</tbody>';
-        table.innerHTML = html;
-
-        // Update diversification metrics
-        if (data.summary) {
-          document.getElementById('metricDiversification').textContent = `${formatNumber(data.summary.diversificationScore * 100, 1)}%`;
-          document.getElementById('metricAvgCorr').textContent = formatNumber(data.summary.avgCorrelation, 2);
-          document.getElementById('diversificationScore').textContent = `Diversification: ${formatNumber(data.summary.diversificationScore * 100, 0)}%`;
-        }
-
-        // Log price history status for debugging (pairs need 10+ data points for correlation)
-        if (data.priceHistoryStatus) {
-          const statusMap = new Map(Object.entries(data.priceHistoryStatus));
-          const insufficientPairs = [];
-          const sufficientPairs = [];
-
-          console.log('Price history status (min 10 points needed for correlation):');
-          for (const [symbol, status] of statusMap) {
-            const hasEnough = status.returns >= 10;
-            const indicator = hasEnough ? '✓' : '✗';
-            console.log(`  ${indicator} ${symbol}: ${status.points} prices, ${status.returns} returns`);
-
-            if (hasEnough) {
-              sufficientPairs.push(symbol);
-            } else {
-              insufficientPairs.push(`${symbol} (${status.returns}/10)`);
-            }
-          }
-
-          // Update UI status
-          const statusDiv = document.getElementById('correlationStatus');
-          const statusText = document.getElementById('correlationStatusText');
-
-          if (insufficientPairs.length > 0) {
-            statusDiv.style.display = 'block';
-            statusText.innerHTML = `${sufficientPairs.length} pairs ready. Waiting for data: ${insufficientPairs.join(', ')}`;
-          } else if (sufficientPairs.length > 0) {
-            statusDiv.style.display = 'block';
-            statusDiv.style.color = '#3fb950';
-            statusText.textContent = `All ${sufficientPairs.length} pairs have sufficient data for correlation analysis`;
-          } else {
-            statusDiv.style.display = 'none';
-          }
-        }
-
-      } catch (err) {
-        console.error('Failed to load correlation data:', err);
-      }
-    }
-
-    async function loadHistoricalPerformance() {
-      try {
-        // In production, this would fetch from /api/portfolio/snapshots
-        // For now, we'll use the real-time data
-        const res = await fetchWithAuth('/api/status');
-        const status = await res.json();
-
-        if (status.pairs && status.pairs.length > 0) {
-          // Update historical chart with current data
-          const labels = pnlData.map(d => d.time);
-          const values = pnlData.map(d => d.value);
-
-          historicalChart.data.labels = labels;
-          historicalChart.data.datasets[0].data = values;
-          historicalChart.update();
-        }
-
-      } catch (err) {
-        console.error('Failed to load historical performance:', err);
-      }
-    }
-
-    // ============================================================================
-    // GRID CONFIGURATION
-    // ============================================================================
-
-    async function loadGridConfig() {
-      try {
-        const res = await fetchWithAuth('/api/grid');
-        const grids = await res.json();
-
-        const container = document.getElementById('gridContainer');
-
-        if (!grids || Object.keys(grids).length === 0) {
-          container.innerHTML = '<p style="font-size: 0.85rem; color: #6e7681;">Start the bot to see grid levels</p>';
-          return;
-        }
-
-        // Save open/closed state of details elements before updating
-        const openDetails = new Set();
-        container.querySelectorAll('details[open]').forEach(details => {
-          const symbol = details.closest('.grid-pair')?.querySelector('.grid-pair-symbol')?.textContent;
-          if (symbol) openDetails.add(symbol);
-        });
-
-        const statusRes = await fetch('/api/status');
-        const status = await statusRes.json();
-        const pairPrices = {};
-        if (status.pairs) {
-          status.pairs.forEach(p => {
-            pairPrices[p.symbol] = p.price;
-          });
-        }
-
-        container.innerHTML = Object.entries(grids).map(([symbol, levels]) => {
-          if (!levels || levels.length === 0) return '';
-
-          const currentPrice = pairPrices[symbol] || 0;
-          const cfg = pairConfigs[symbol] || {};
-          const upperPrice = cfg.gridUpper || Math.max(...levels.map(l => l.price));
-          const lowerPrice = cfg.gridLower || Math.min(...levels.map(l => l.price));
-          const priceRange = upperPrice - lowerPrice;
-          const gridSpacing = priceRange / (levels.length - 1);
-
-          const buyOrders = levels.filter(l => l.status === 'buy_pending' || l.buyOrderId).length;
-          const sellOrders = levels.filter(l => l.status === 'sell_pending' || l.sellOrderId).length;
-
-          const pricePosition = currentPrice > 0
-            ? Math.max(0, Math.min(100, ((upperPrice - currentPrice) / priceRange) * 100))
-            : 50;
-
-          const gridLevelsHtml = levels.map((level) => {
-            const levelPosition = ((upperPrice - level.price) / priceRange) * 100;
-            const statusClass = level.buyOrderId ? 'buy' : level.sellOrderId ? 'sell' : level.status === 'filled' ? 'filled' : '';
-            const priceLabel = `$${level.price.toFixed(4)}`;
-            return `
-              <div class="grid-level ${statusClass}" style="top: ${levelPosition}%;">
-                <span class="grid-level-price">${priceLabel}</span>
-              </div>
-            `;
-          }).join('');
-
-          const currentPriceHtml = currentPrice > 0
-            ? `<div class="grid-current-price" style="top: ${pricePosition}%;">
-                <span class="grid-current-price-label">Current: $${currentPrice.toFixed(4)}</span>
-              </div>`
-            : '';
-
-          // Detailed table view
-          const levelsTableHtml = levels.map(level => {
-            let statusText = 'Empty';
-            let statusClass = 'empty';
-            if (level.buyOrderId) {
-              statusText = '🟢 Buy Order';
-              statusClass = 'buy';
-            } else if (level.sellOrderId) {
-              statusText = '🔴 Sell Order';
-              statusClass = 'sell';
-            } else if (level.status === 'bought') {
-              statusText = '✅ Bought';
-              statusClass = 'filled';
-            } else if (level.status === 'sold') {
-              statusText = '💰 Sold';
-              statusClass = 'filled';
-            }
-
-            const isCurrent = currentPrice > 0 && Math.abs(level.price - currentPrice) < gridSpacing / 2;
-            const currentMarker = isCurrent ? ' 👉' : '';
-
-            return `
-              <tr class="level-row ${statusClass}">
-                <td>#${level.level}</td>
-                <td>$${level.price.toFixed(4)}${currentMarker}</td>
-                <td>${statusText}</td>
-              </tr>
-            `;
-          }).join('');
-
-          return `
-            <div class="grid-pair">
-              <div class="grid-pair-header">
-                <span class="grid-pair-symbol">${symbol.replace('USDT', '/USDT')}</span>
-                <span class="grid-pair-range">${levels.length} levels | $${lowerPrice.toFixed(4)} - $${upperPrice.toFixed(4)}</span>
-              </div>
-              <div class="grid-visual">${currentPriceHtml}${gridLevelsHtml}</div>
-              <div class="grid-stats">
-                <div><div class="grid-stat-value">${levels.length}</div><div class="grid-stat-label">Levels</div></div>
-                <div><div class="grid-stat-value positive">${buyOrders}</div><div class="grid-stat-label">Buy Orders</div></div>
-                <div><div class="grid-stat-value negative">${sellOrders}</div><div class="grid-stat-label">Sell Orders</div></div>
-                <div><div class="grid-stat-value">$${gridSpacing.toFixed(4)}</div><div class="grid-stat-label">Spacing</div></div>
-              </div>
-              <details class="grid-details" data-symbol="${symbol.replace('USDT', '/USDT')}">
-                <summary>📊 View Detailed Levels</summary>
-                <table class="levels-table">
-                  <thead>
-                    <tr>
-                      <th>Level</th>
-                      <th>Price</th>
-                      <th>Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    ${levelsTableHtml}
-                  </tbody>
-                </table>
-              </details>
-            </div>
-          `;
-        }).join('');
-
-        // Restore open state of details elements
-        setTimeout(() => {
-          container.querySelectorAll('.grid-details').forEach(details => {
-            const symbol = details.dataset.symbol;
-            if (openDetails.has(symbol)) {
-              details.setAttribute('open', '');
-            }
-          });
-        }, 0);
-
-      } catch (err) {
-        console.error('Failed to load grid config:', err);
-      }
-    }
-
-    // ============================================================================
-    // BALANCES
-    // ============================================================================
-
-    async function loadBalances() {
-      try {
-        const res = await fetchWithAuth('/api/balances');
-        const balances = await res.json();
-        const container = document.getElementById('balances');
-
-        if (!balances || balances.length === 0) {
-          container.innerHTML = '<div class="balance-item"><span class="balance-asset">No balances</span></div>';
-          return;
-        }
-
-        container.innerHTML = balances.slice(0, 6).map(b => `
-          <div class="balance-item">
-            <span class="balance-asset">${b.asset}</span>
-            <span class="balance-amount">${formatNumber(b.total, 8)}</span>
-          </div>
-        `).join('');
-      } catch (err) {
-        document.getElementById('balances').innerHTML = '<div class="balance-item"><span class="balance-asset">Failed to load</span></div>';
-      }
-    }
-
-    // ============================================================================
-    // ACTIVITY LOG
-    // ============================================================================
-
-    function addActivity(message, type = 'info') {
-      const log = document.getElementById('activityLog');
+    // Add Activity to Feed
+    function addActivity(type, pair, message) {
+      const feed = document.getElementById('activityFeed');
       const time = new Date().toLocaleTimeString();
-      const color = type === 'error' ? '#f85149' : type === 'success' ? '#3fb950' : '#8b949e';
 
-      const entry = document.createElement('div');
-      entry.style.cssText = `padding: 0.5rem; border-bottom: 1px solid #21262d; color: ${color}`;
-      entry.innerHTML = `<span style="color: #6e7681">[${time}]</span> ${message}`;
+      const item = document.createElement('div');
+      item.className = `activity-item ${type}`;
+      item.innerHTML = `
+        <div class="activity-time">${time}</div>
+        <div class="activity-message">
+          <span class="activity-pair">${pair}:</span> ${message}
+        </div>
+      `;
 
-      log.insertBefore(entry, log.firstChild);
+      if (feed.querySelector('.empty-state')) {
+        feed.innerHTML = '';
+      }
 
-      while (log.children.length > 20) {
-        log.removeChild(log.lastChild);
+      feed.insertBefore(item, feed.firstChild);
+
+      while (feed.children.length > 50) {
+        feed.removeChild(feed.lastChild);
       }
     }
 
-    // ============================================================================
-    // WEBSOCKET
-    // ============================================================================
-
-    function connectWebSocket() {
-      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      ws = new WebSocket(`${protocol}//${window.location.host}`);
-
-      ws.onopen = () => {
-        console.log('WebSocket connected');
-        addActivity('Connected to server', 'success');
-      };
-
-      ws.onmessage = (event) => {
-        const msg = JSON.parse(event.data);
-
-        if (msg.type === 'portfolio') {
-          isPortfolioMode = true;
-          updatePortfolioStatus(msg.data);
-        } else if (msg.type === 'status') {
-          isPortfolioMode = false;
-          updatePortfolioStatus(msg.data);
-        } else if (msg.type === 'pair') {
-          addActivity(`${msg.symbol}: Price $${formatNumber(msg.data.price, 4)}, PnL $${formatNumber(msg.data.pnl)}`);
-        }
-      };
-
-      ws.onclose = () => {
-        console.log('WebSocket disconnected, reconnecting...');
-        addActivity('Disconnected, reconnecting...', 'error');
-        setTimeout(connectWebSocket, 2000);
-      };
-
-      ws.onerror = (err) => console.error('WebSocket error:', err);
+    // Load Status
+    async function loadStatus() {
+      try {
+        const response = await fetch('/api/status', {
+          headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+        });
+        const data = await response.json();
+        updateStatus(data);
+      } catch (error) {
+        console.error('Error loading status:', error);
+      }
     }
 
-    // ============================================================================
-    // BOT CONTROL
-    // ============================================================================
+    // Update Status
+    function updateStatus(data) {
+      const statusPill = document.getElementById('botStatus');
+      const statusText = document.getElementById('statusText');
+      const botAction = document.getElementById('botAction');
 
-    async function startPortfolioBot() {
-      const capital = parseFloat(document.getElementById('capitalInput').value);
-      const strategy = document.getElementById('strategySelect').value;
+      statusPill.className = 'status-pill';
+      if (data.status === 'running') {
+        statusPill.classList.add('status-running');
+        statusText.textContent = 'RUNNING';
+        botAction.textContent = 'Monitoring grid levels and executing trades';
+        document.getElementById('startBtn').disabled = true;
+        document.getElementById('stopBtn').disabled = false;
+      } else if (data.status === 'paused') {
+        statusPill.classList.add('status-paused');
+        statusText.textContent = 'PAUSED';
+        botAction.textContent = 'Trading paused due to risk limits';
+      } else {
+        statusPill.classList.add('status-stopped');
+        statusText.textContent = 'STOPPED';
+        botAction.textContent = 'Bot is not running';
+        document.getElementById('startBtn').disabled = false;
+        document.getElementById('stopBtn').disabled = true;
+      }
 
-      const pairs = selectedPairs.map(symbol => {
-        const config = pairConfigs[symbol];
-        return {
-          ...config,
-          allocationPercent: 100 / selectedPairs.length
-        };
-      });
+      const simBadge = document.getElementById('simulationBadge');
+      if (data.config?.simulationMode) {
+        simBadge.style.background = 'linear-gradient(135deg, #11998e 0%, #38ef7d 100%)';
+        document.getElementById('simModeText').textContent = 'SIMULATION';
+      } else {
+        simBadge.style.background = 'linear-gradient(135deg, #eb3349 0%, #f5576c 100%)';
+        document.getElementById('simModeText').textContent = '⚠️ LIVE';
+      }
 
+      document.getElementById('tradingMode').textContent = data.mode || 'Portfolio';
+
+      if (data.portfolio) {
+        updatePortfolioStatus(data.portfolio);
+      }
+
+      // Load trade stats
+      loadTradeStats();
+    }
+
+    // Load Trade Stats
+    async function loadTradeStats() {
       try {
-        addActivity(`Starting portfolio with ${selectedPairs.join(', ')}...`);
+        const response = await fetch('/api/trades/stats', {
+          headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+        });
+        const data = await response.json();
 
-        const res = await fetchWithAuth('/api/portfolio/start', {
+        if (data.totalTrades) {
+          document.getElementById('totalTrades').textContent = data.totalTrades;
+          document.getElementById('winRate').textContent = `${data.winRate?.toFixed(1) || 0}%`;
+
+          const dailyPnl = data.dailyPnL || 0;
+          const dailyPnlEl = document.getElementById('dailyPnl');
+          dailyPnlEl.textContent = `$${dailyPnl.toFixed(2)}`;
+          dailyPnlEl.className = 'metric-value';
+          if (dailyPnl > 0) dailyPnlEl.classList.add('positive');
+          else if (dailyPnl < 0) dailyPnlEl.classList.add('negative');
+        }
+      } catch (error) {
+        console.error('Error loading trade stats:', error);
+      }
+    }
+
+    // Bot Controls
+    async function startBot() {
+      try {
+        // Check if we have pairs
+        const hasPairs = currentPairs && currentPairs.length > 0;
+
+        // Show info message if no pairs selected
+        if (!hasPairs) {
+          const confirmed = confirm(
+            'No trading pairs selected.\n\n' +
+            'The bot will start with recommended default pairs:\n' +
+            '• DOGE/USDT\n' +
+            '• XLM/USDT\n\n' +
+            'These pairs are chosen for low correlation and good liquidity.\n\n' +
+            'Continue?'
+          );
+
+          if (!confirmed) {
+            return;
+          }
+        }
+
+        const response = await fetch('/api/portfolio/start', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ pairs, totalCapital: capital, riskStrategy: strategy })
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+            'Content-Type': 'application/json'
+          }
         });
 
-        const data = await res.json();
+        if (response.ok) {
+          const result = await response.json();
+          const pairsMessage = result.pairs && result.pairs.length > 0
+            ? `Started with pairs: ${result.pairs.join(', ')}`
+            : 'Bot started successfully';
 
-        if (!res.ok) {
-          addActivity(data.error || 'Failed to start', 'error');
-          alert(data.error || 'Failed to start portfolio bot');
-        } else {
-          isPortfolioMode = true;
-          addActivity('Portfolio bot started successfully', 'success');
-          document.getElementById('totalCapital').textContent = `$${formatNumber(capital)}`;
-          // Update mode badge
-          const modeBadge = document.getElementById('modeBadge');
-          modeBadge.textContent = 'PORTFOLIO';
-          modeBadge.style.background = '#388bfd20';
-          modeBadge.style.color = '#58a6ff';
-        }
-      } catch (err) {
-        addActivity('Failed to start bot', 'error');
-        alert('Failed to start portfolio bot');
-      }
-    }
+          addActivity('info', 'System', pairsMessage);
+          await loadStatus();
 
-    async function startSingleBot() {
-      try {
-        addActivity('Starting single pair bot...');
-        const res = await fetchWithAuth('/api/start', { method: 'POST' });
-        const data = await res.json();
-        if (!res.ok) {
-          addActivity(data.error || 'Failed to start', 'error');
-          alert(data.error || 'Failed to start bot');
+          // Show success notification
+          if (!hasPairs) {
+            setTimeout(() => {
+              alert(
+                '✅ Bot started with default pairs!\n\n' +
+                `Trading: ${result.pairs.join(', ')}\n` +
+                `Capital: $${result.totalCapital}\n` +
+                `Strategy: ${result.riskStrategy}\n\n` +
+                'Check the Active Pairs section to see them.'
+              );
+            }, 500);
+          }
         } else {
-          isPortfolioMode = false;
-          addActivity('Single pair bot started', 'success');
-          // Update mode badge
-          const modeBadge = document.getElementById('modeBadge');
-          modeBadge.textContent = 'SINGLE PAIR';
-          modeBadge.style.background = '#6e40c920';
-          modeBadge.style.color = '#a371f7';
+          const error = await response.json();
+          const errorMsg = error.message || error.error || 'Unknown error';
+          addActivity('info', 'System', `Failed to start: ${errorMsg}`);
+          alert(`❌ Failed to start bot\n\n${errorMsg}\n\nTip: If the bot is already running, stop it first.`);
         }
-      } catch (err) {
-        addActivity('Failed to start bot', 'error');
-        alert('Failed to start bot');
+      } catch (error) {
+        console.error('Error starting bot:', error);
+        alert('Error starting bot. Check console for details.');
       }
     }
 
     async function stopBot() {
       try {
-        addActivity('Stopping bot...');
-        const res = await fetchWithAuth('/api/stop', { method: 'POST' });
-        const data = await res.json();
-        if (!res.ok) {
-          addActivity(data.error || 'Failed to stop', 'error');
-          alert(data.error || 'Failed to stop bot');
-        } else {
-          addActivity('Bot stopped', 'success');
-          isBotRunning = false;
-          document.getElementById('stopBtn').disabled = true;
-          document.getElementById('startPortfolioBtn').disabled = false;
-          document.getElementById('startSingleBtn').disabled = false;
-          document.getElementById('startPanel').style.display = 'block';
-          document.getElementById('statusBadge').textContent = 'STOPPED';
-          document.getElementById('statusBadge').className = 'status-badge status-stopped';
+        const response = await fetch('/api/stop', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+            'Content-Type': 'application/json'
+          }
+        });
+
+        if (response.ok) {
+          addActivity('info', 'System', 'Bot stopped');
+          await loadStatus();
         }
-      } catch (err) {
-        addActivity('Failed to stop bot', 'error');
-        alert('Failed to stop bot');
+      } catch (error) {
+        console.error('Error stopping bot:', error);
       }
     }
 
-    // ============================================================================
-    // EXPORT FUNCTIONS
-    // ============================================================================
+    // Modal Functions
+    function openConfigModal() {
+      document.getElementById('configModal').classList.add('active');
+      loadConfigData();
+    }
 
-    async function exportTradeHistory() {
+    function openTradesModal() {
+      document.getElementById('tradesModal').classList.add('active');
+      loadTradeHistory();
+    }
+
+    function openBalanceModal() {
+      document.getElementById('balanceModal').classList.add('active');
+      loadBalances();
+    }
+
+    function openAnalyticsModal() {
+      document.getElementById('analyticsModal').classList.add('active');
+      loadAnalytics();
+    }
+
+    function closeModal(modalId) {
+      document.getElementById(modalId).classList.remove('active');
+    }
+
+    // Load Config Data
+    async function loadConfigData() {
       try {
-        const res = await fetchWithAuth('/api/trades/history?limit=1000');
-        const trades = await res.json();
+        const response = await fetch('/api/config', {
+          headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+        });
+        const data = await response.json();
 
+        document.getElementById('riskStrategy').value = data.riskStrategy || 'moderate';
+
+        // Load current pairs
+        if (currentPairs.length > 0) {
+          const container = document.getElementById('currentPairsList');
+          container.innerHTML = currentPairs.map(pair => `
+            <div class="pair-item" style="margin-bottom: 0.5rem;">
+              <div class="pair-header">
+                <span class="pair-symbol">${pair.symbol}</span>
+                <button class="btn btn-secondary" style="padding: 0.25rem 0.75rem; font-size: 0.75rem;" onclick="removePair('${pair.symbol}')">Remove</button>
+              </div>
+            </div>
+          `).join('');
+        }
+      } catch (error) {
+        console.error('Error loading config:', error);
+      }
+    }
+
+    // Update Risk Strategy
+    async function updateRiskStrategy() {
+      const strategy = document.getElementById('riskStrategy').value;
+      try {
+        const response = await fetch('/api/portfolio/strategy', {
+          method: 'PUT',
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ strategy })
+        });
+
+        if (response.ok) {
+          addActivity('info', 'System', `Risk strategy changed to ${strategy}`);
+        }
+      } catch (error) {
+        console.error('Error updating strategy:', error);
+      }
+    }
+
+    // Add Pair
+    async function addPair() {
+      const symbol = document.getElementById('newPairSymbol').value;
+
+      // Check if bot is running
+      const statusResponse = await fetch('/api/status', {
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+      });
+      const status = await statusResponse.json();
+      const isRunning = status.status === 'running';
+
+      try {
+        const response = await fetch('/api/portfolio/pair', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ symbol })
+        });
+
+        if (response.ok) {
+          addActivity('info', 'System', `Added ${symbol} to portfolio`);
+
+          // Show appropriate message
+          if (isRunning) {
+            alert(
+              `✅ ${symbol} added to portfolio!\n\n` +
+              'The bot is running and will start trading this pair automatically.\n\n' +
+              'You can see it in the Active Pairs section.'
+            );
+          } else {
+            alert(
+              `✅ ${symbol} added to portfolio!\n\n` +
+              'Click the Start button to begin trading.\n\n' +
+              'The pair will appear in Active Pairs once the bot starts.'
+            );
+          }
+
+          // Reload data
+          await loadConfigData();
+          await loadStatus();
+
+          // Close modal after successful add
+          setTimeout(() => {
+            closeModal('configModal');
+          }, 1000);
+        } else {
+          const error = await response.json();
+          const errorMsg = error.message || error.error || 'Unknown error';
+
+          // Provide helpful message based on error
+          if (errorMsg.includes('not running')) {
+            alert(
+              `❌ Cannot add pair: Bot is not running\n\n` +
+              `To add pairs:\n` +
+              `1. Click the "Start" button first\n` +
+              `2. Then come back to Settings and add more pairs\n\n` +
+              `Or just click Start and the bot will use recommended default pairs.`
+            );
+          } else {
+            alert(`❌ Failed to add pair\n\n${errorMsg}`);
+          }
+        }
+      } catch (error) {
+        console.error('Error adding pair:', error);
+        alert('Error adding pair. Check console for details.');
+      }
+    }
+
+    // Remove Pair
+    async function removePair(symbol) {
+      if (!confirm(`Remove ${symbol} from portfolio?`)) return;
+
+      try {
+        const response = await fetchWithAuth(`/api/portfolio/pair/${symbol}`, {
+          method: 'DELETE'
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          addActivity('info', 'System', `✅ Removed ${symbol} from portfolio`);
+
+          // Reload config to update the pairs list in settings modal
+          await loadConfigData();
+
+          // Reload status to update active pairs display
+          await loadStatus();
+
+          // Show success message
+          showNotification(`Successfully removed ${symbol} from portfolio`, 'success');
+
+          console.log(`Pair ${symbol} removed successfully:`, data);
+        } else {
+          const error = await response.json();
+          const errorMsg = error.error || error.message || 'Unknown error';
+
+          console.error('Failed to remove pair:', errorMsg);
+          addActivity('error', 'System', `❌ Failed to remove ${symbol}: ${errorMsg}`);
+          alert(`Failed to remove ${symbol}\n\n${errorMsg}`);
+        }
+      } catch (error) {
+        console.error('Error removing pair:', error);
+        addActivity('error', 'System', `❌ Error removing ${symbol}`);
+        alert(`Error removing ${symbol}. Check console for details.`);
+      }
+    }
+
+    // Show notification (simple toast-style notification)
+    function showNotification(message, type = 'info') {
+      const colors = {
+        success: '#38ef7d',
+        error: '#f5576c',
+        info: '#4facfe'
+      };
+
+      const notification = document.createElement('div');
+      notification.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: ${colors[type] || colors.info};
+        color: white;
+        padding: 1rem 1.5rem;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        z-index: 10000;
+        font-weight: 600;
+        animation: slideIn 0.3s ease-out;
+      `;
+      notification.textContent = message;
+
+      document.body.appendChild(notification);
+
+      setTimeout(() => {
+        notification.style.animation = 'slideOut 0.3s ease-in';
+        setTimeout(() => notification.remove(), 300);
+      }, 3000);
+    }
+
+    // Load Trade History
+    async function loadTradeHistory() {
+      const pair = document.getElementById('tradeFilterPair').value;
+      try {
+        const url = `/api/trades/history${pair ? `?pair=${pair}` : ''}`;
+        const response = await fetch(url, {
+          headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+        });
+        const trades = await response.json();
+
+        const tbody = document.getElementById('tradeHistoryBody');
         if (!trades || trades.length === 0) {
-          alert('No trades to export');
+          tbody.innerHTML = '<tr><td colspan="7" class="empty-state"><p>No trades found</p></td></tr>';
           return;
         }
 
-        const csv = [
-          ['Timestamp', 'Pair', 'Side', 'Price', 'Quantity', 'Value', 'PnL', 'Grid Level'],
-          ...trades.map(t => [
-            t.executedAt || t.createdAt,
-            t.symbol,
-            t.side,
-            t.price,
-            t.quantity,
-            t.price * t.quantity,
-            t.realizedPnl,
-            t.gridLevel || ''
-          ])
-        ].map(row => row.join(',')).join('\n');
+        tbody.innerHTML = trades.map(trade => `
+          <tr>
+            <td>${new Date(trade.timestamp).toLocaleString()}</td>
+            <td>${trade.symbol}</td>
+            <td><span class="badge badge-${trade.side.toLowerCase()}">${trade.side}</span></td>
+            <td>$${trade.price.toFixed(6)}</td>
+            <td>${trade.quantity}</td>
+            <td>$${(trade.price * trade.quantity).toFixed(2)}</td>
+            <td style="color: ${trade.pnl >= 0 ? '#38ef7d' : '#f5576c'}">
+              ${trade.pnl ? `$${trade.pnl.toFixed(2)}` : '-'}
+            </td>
+          </tr>
+        `).join('');
 
-        downloadCSV(csv, 'trade-history.csv');
-        addActivity('Trade history exported', 'success');
-      } catch (err) {
-        console.error('Failed to export trades:', err);
-        alert('Failed to export trades');
+        // Update filter options
+        const uniquePairs = [...new Set(trades.map(t => t.symbol))];
+        const filterSelect = document.getElementById('tradeFilterPair');
+        filterSelect.innerHTML = '<option value="">All Pairs</option>' +
+          uniquePairs.map(p => `<option value="${p}">${p}</option>`).join('');
+      } catch (error) {
+        console.error('Error loading trades:', error);
       }
     }
 
-    async function exportPerformanceReport() {
+    // Load Balances
+    async function loadBalances() {
       try {
-        const [statusRes, statsRes, balancesRes] = await Promise.all([
-          fetch('/api/status'),
-          fetch('/api/trades/stats'),
-          fetch('/api/balances')
-        ]);
+        const response = await fetch('/api/balances', {
+          headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+        });
+        const balances = await response.json();
 
-        const status = await statusRes.json();
-        const stats = await statsRes.json();
-        const balances = await balancesRes.json();
+        const container = document.getElementById('balancesList');
+        if (!balances || balances.length === 0) {
+          container.innerHTML = '<div class="empty-state"><p>No balances found</p></div>';
+          return;
+        }
 
-        const report = {
-          generatedAt: new Date().toISOString(),
-          status: status,
-          statistics: stats,
-          balances: balances,
-          configuration: {
-            portfolioMode: isPortfolioMode,
-            simulationMode: isSimulationMode,
-            selectedPairs: selectedPairs
-          }
-        };
-
-        const json = JSON.stringify(report, null, 2);
-        downloadJSON(json, 'performance-report.json');
-        addActivity('Performance report exported', 'success');
-      } catch (err) {
-        console.error('Failed to export report:', err);
-        alert('Failed to export report');
+        container.innerHTML = balances
+          .filter(b => parseFloat(b.free) > 0 || parseFloat(b.locked) > 0)
+          .map(balance => {
+            const total = parseFloat(balance.free) + parseFloat(balance.locked);
+            return `
+              <div class="metric-row">
+                <span class="metric-label">${balance.asset}</span>
+                <div style="text-align: right;">
+                  <div class="metric-value">${total.toFixed(6)}</div>
+                  <div class="form-hint">Free: ${balance.free} | Locked: ${balance.locked}</div>
+                </div>
+              </div>
+            `;
+          }).join('');
+      } catch (error) {
+        console.error('Error loading balances:', error);
       }
     }
 
-    function downloadCSV(csv, filename) {
-      const blob = new Blob([csv], { type: 'text/csv' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = filename;
-      a.click();
-      URL.revokeObjectURL(url);
+    // Load Analytics Data
+    let equityChart = null; // Store chart instance for cleanup
+
+    async function loadAnalytics() {
+      try {
+        // Load main metrics
+        const metricsResponse = await fetch('/api/analytics/metrics', {
+          headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+        });
+        const metrics = await metricsResponse.json();
+
+        // Update key metric cards
+        document.getElementById('analyticsReturn').textContent =
+          `${metrics.totalReturn >= 0 ? '+' : ''}${metrics.totalReturn.toFixed(2)}%`;
+        document.getElementById('analyticsSharpe').textContent =
+          metrics.sharpeRatio.toFixed(2);
+        document.getElementById('analyticsWinRate').textContent =
+          `${metrics.winRate.toFixed(1)}%`;
+        document.getElementById('analyticsDrawdown').textContent =
+          `${metrics.maxDrawdown.toFixed(2)}%`;
+
+        // Render risk metrics
+        document.getElementById('riskMetrics').innerHTML = `
+          <div class="metric-row">
+            <span class="metric-label">Sortino Ratio</span>
+            <span class="metric-value">${metrics.sortinoRatio.toFixed(2)}</span>
+          </div>
+          <div class="metric-row">
+            <span class="metric-label">Calmar Ratio</span>
+            <span class="metric-value">${metrics.calmarRatio.toFixed(2)}</span>
+          </div>
+          <div class="metric-row">
+            <span class="metric-label">Volatility</span>
+            <span class="metric-value">${metrics.volatility.toFixed(2)}%</span>
+          </div>
+          <div class="metric-row">
+            <span class="metric-label">Max Drawdown</span>
+            <span class="metric-value" style="color: #f5576c;">-${metrics.maxDrawdown.toFixed(2)}%</span>
+          </div>
+        `;
+
+        // Render trade statistics
+        document.getElementById('tradeStats').innerHTML = `
+          <div class="metric-row">
+            <span class="metric-label">Total Trades</span>
+            <span class="metric-value">${metrics.totalTrades}</span>
+          </div>
+          <div class="metric-row">
+            <span class="metric-label">Winning Trades</span>
+            <span class="metric-value" style="color: #38ef7d;">${metrics.winningTrades}</span>
+          </div>
+          <div class="metric-row">
+            <span class="metric-label">Losing Trades</span>
+            <span class="metric-value" style="color: #f5576c;">${metrics.losingTrades}</span>
+          </div>
+          <div class="metric-row">
+            <span class="metric-label">Profit Factor</span>
+            <span class="metric-value">${metrics.profitFactor.toFixed(2)}</span>
+          </div>
+          <div class="metric-row">
+            <span class="metric-label">Avg Win</span>
+            <span class="metric-value" style="color: #38ef7d;">$${metrics.avgWin.toFixed(2)}</span>
+          </div>
+          <div class="metric-row">
+            <span class="metric-label">Avg Loss</span>
+            <span class="metric-value" style="color: #f5576c;">$${metrics.avgLoss.toFixed(2)}</span>
+          </div>
+        `;
+
+        // Load and render equity curve
+        const equityResponse = await fetch('/api/analytics/equity-curve', {
+          headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+        });
+        const equityData = await equityResponse.json();
+        renderEquityCurve(equityData);
+
+        // Load and render pair performance
+        const pairResponse = await fetch('/api/analytics/pair-performance', {
+          headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+        });
+        const pairData = await pairResponse.json();
+        renderPairPerformance(pairData);
+
+      } catch (error) {
+        console.error('Error loading analytics:', error);
+        document.getElementById('analyticsReturn').textContent = 'Error';
+        document.getElementById('analyticsSharpe').textContent = 'Error';
+        document.getElementById('analyticsWinRate').textContent = 'Error';
+        document.getElementById('analyticsDrawdown').textContent = 'Error';
+      }
     }
 
-    function downloadJSON(json, filename) {
-      const blob = new Blob([json], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = filename;
-      a.click();
-      URL.revokeObjectURL(url);
-    }
+    // Render Equity Curve Chart
+    function renderEquityCurve(data) {
+      const ctx = document.getElementById('equityCurveChart');
 
-    // ============================================================================
-    // PAIR SELECTION
-    // ============================================================================
+      // Destroy previous chart if exists
+      if (equityChart) {
+        equityChart.destroy();
+      }
 
-    function setupPairSelector() {
-      document.querySelectorAll('.recommended-pair').forEach(el => {
-        el.addEventListener('click', () => {
-          const symbol = el.dataset.symbol;
+      const labels = data.map(d => new Date(d.timestamp).toLocaleDateString());
+      const equityValues = data.map(d => d.equity);
 
-          if (el.classList.contains('selected')) {
-            if (selectedPairs.length > 1) {
-              selectedPairs = selectedPairs.filter(s => s !== symbol);
-              el.classList.remove('selected');
+      equityChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: labels,
+          datasets: [{
+            label: 'Portfolio Value',
+            data: equityValues,
+            borderColor: '#4facfe',
+            backgroundColor: 'rgba(79, 172, 254, 0.1)',
+            borderWidth: 2,
+            fill: true,
+            tension: 0.4,
+            pointRadius: 0,
+            pointHoverRadius: 6,
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: true,
+          interaction: {
+            intersect: false,
+            mode: 'index',
+          },
+          plugins: {
+            legend: {
+              display: true,
+              labels: {
+                color: '#e1e8f0',
+                font: { size: 12 }
+              }
+            },
+            tooltip: {
+              backgroundColor: 'rgba(15, 23, 41, 0.95)',
+              titleColor: '#e1e8f0',
+              bodyColor: '#e1e8f0',
+              borderColor: '#4facfe',
+              borderWidth: 1,
+              padding: 12,
+              displayColors: false,
+              callbacks: {
+                label: function(context) {
+                  return `Value: $${context.parsed.y.toFixed(2)}`;
+                }
+              }
             }
-          } else {
-            if (selectedPairs.length < 4) {
-              selectedPairs.push(symbol);
-              el.classList.add('selected');
+          },
+          scales: {
+            x: {
+              grid: {
+                color: 'rgba(45, 58, 94, 0.3)',
+                drawBorder: false,
+              },
+              ticks: {
+                color: '#8b9dc3',
+                maxTicksLimit: 10,
+                font: { size: 10 }
+              }
+            },
+            y: {
+              grid: {
+                color: 'rgba(45, 58, 94, 0.3)',
+                drawBorder: false,
+              },
+              ticks: {
+                color: '#8b9dc3',
+                font: { size: 10 },
+                callback: function(value) {
+                  return '$' + value.toFixed(0);
+                }
+              }
             }
           }
-        });
+        }
       });
     }
 
-    // ============================================================================
-    // PAIR CONFIGS
-    // ============================================================================
+    // Render Pair Performance Table
+    function renderPairPerformance(data) {
+      const tbody = document.getElementById('pairPerformanceBody');
 
-    async function loadPairConfigs() {
+      if (!data || data.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" class="empty-state"><p>No trade data available</p></td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = data.map(pair => `
+        <tr>
+          <td style="font-weight: 700;">${pair.symbol}</td>
+          <td>${pair.totalTrades}</td>
+          <td>${pair.winRate.toFixed(1)}%</td>
+          <td style="color: ${pair.totalPnl >= 0 ? '#38ef7d' : '#f5576c'};">
+            ${pair.totalPnl >= 0 ? '+' : ''}$${pair.totalPnl.toFixed(2)}
+          </td>
+          <td style="color: ${pair.avgPnl >= 0 ? '#38ef7d' : '#f5576c'};">
+            ${pair.avgPnl >= 0 ? '+' : ''}$${pair.avgPnl.toFixed(2)}
+          </td>
+          <td style="color: #38ef7d;">$${pair.bestTrade.toFixed(2)}</td>
+          <td style="color: #f5576c;">$${pair.worstTrade.toFixed(2)}</td>
+        </tr>
+      `).join('');
+    }
+
+    // Export Trades to CSV
+    async function exportTradesCsv() {
       try {
-        const res = await fetchWithAuth('/api/recommended-pairs');
-        const data = await res.json();
+        const response = await fetch('/api/analytics/export-csv', {
+          headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+        });
 
-        // Convert recommended pairs array to object keyed by symbol
-        pairConfigs = {};
-        if (data.recommended) {
-          data.recommended.forEach(pair => {
-            pairConfigs[pair.symbol] = pair;
-          });
+        if (!response.ok) {
+          throw new Error('Failed to export trades');
         }
 
-        // Also add alternatives
-        if (data.alternatives) {
-          Object.values(data.alternatives).forEach(pairList => {
-            pairList.forEach(pair => {
-              if (!pairConfigs[pair.symbol]) {
-                pairConfigs[pair.symbol] = pair;
-              }
-            });
-          });
-        }
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `trades_${new Date().toISOString().split('T')[0]}.csv`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
 
-        console.log('Loaded pair configs:', Object.keys(pairConfigs));
-      } catch (err) {
-        console.error('Failed to load pair configs:', err);
-        // Fallback to minimal config
-        pairConfigs = {
-          DOGEUSDT: { symbol: 'DOGEUSDT', baseAsset: 'DOGE', quoteAsset: 'USDT', gridUpper: 0.18, gridLower: 0.10, gridCount: 7, amountPerGrid: 100, gridType: 'arithmetic', allocationPercent: 50, enabled: true },
-          XLMUSDT: { symbol: 'XLMUSDT', baseAsset: 'XLM', quoteAsset: 'USDT', gridUpper: 0.32, gridLower: 0.17, gridCount: 7, amountPerGrid: 50, gridType: 'arithmetic', allocationPercent: 50, enabled: true },
-        };
+        showNotification('Trade history exported successfully!', 'success');
+      } catch (error) {
+        console.error('Error exporting trades:', error);
+        showNotification('Failed to export trade history', 'error');
       }
     }
 
-    // ============================================================================
-    // INITIALIZATION
-    // ============================================================================
+    // Toggle Simulation Mode
+    async function toggleSimulationMode() {
+      if (isTogglingSimulation) {
+        return; // Prevent double-clicks
+      }
 
-    document.addEventListener('DOMContentLoaded', async () => {
-      // Load pair configs first (other functions depend on it)
-      await loadPairConfigs();
+      try {
+        isTogglingSimulation = true;
 
-      initCharts();
-      loadBalances();
-      loadGridConfig();
-      connectWebSocket();
-      setupPairSelector();
+        const response = await fetch('/api/status', {
+          headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+        });
+        const status = await response.json();
 
-      // Refresh balances periodically
-      setInterval(loadBalances, 30000);
+        const currentMode = status.config?.simulationMode;
+        const newMode = !currentMode;
 
-      // Refresh grid config periodically when running
-      setInterval(() => {
-        if (isBotRunning) {
-          loadGridConfig();
-          loadActiveOrders();
+        // Show confirmation if switching TO live mode
+        if (!newMode) {
+          const confirmed = confirm(
+            '⚠️ WARNING: Switch to LIVE TRADING?\n\n' +
+            'This will place REAL orders with REAL money!\n\n' +
+            'Make sure:\n' +
+            '✓ You understand the risks\n' +
+            '✓ Your strategy is tested\n' +
+            '✓ Your capital allocation is correct\n\n' +
+            'Continue to LIVE trading?'
+          );
+
+          if (!confirmed) {
+            return;
+          }
         }
-      }, 5000);
 
-      // Load trade stats periodically
-      setInterval(() => {
-        if (isBotRunning) {
-          loadTradeStats();
+        // Call API to toggle
+        const toggleResponse = await fetch('/api/simulation', {
+          method: 'PUT',
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ enabled: newMode })
+        });
+
+        const result = await toggleResponse.json();
+
+        if (toggleResponse.ok) {
+          addActivity('info', 'System',
+            newMode ? 'Switched to SIMULATION mode' : 'Switched to LIVE TRADING mode ⚠️'
+          );
+
+          // Update UI immediately
+          const simBadge = document.getElementById('simulationBadge');
+          const simModeText = document.getElementById('simModeText');
+
+          if (newMode) {
+            simBadge.style.background = 'linear-gradient(135deg, #11998e 0%, #38ef7d 100%)';
+            simModeText.textContent = 'SIMULATION';
+          } else {
+            simBadge.style.background = 'linear-gradient(135deg, #eb3349 0%, #f5576c 100%)';
+            simModeText.textContent = '⚠️ LIVE';
+          }
+
+          // Show success message
+          if (newMode) {
+            alert('✅ Switched to SIMULATION mode\n\nYou can now test safely without risking real money.');
+          } else {
+            alert('⚠️ LIVE TRADING ENABLED\n\nReal orders will now be placed!\nBot must be restarted for changes to take effect.');
+          }
+
+          // Reload status to sync everything
+          setTimeout(() => {
+            loadStatus();
+            isTogglingSimulation = false;
+          }, 1000);
+        } else {
+          alert(`Failed to toggle mode: ${result.error || result.message}`);
+          isTogglingSimulation = false;
         }
-      }, 10000);
+      } catch (error) {
+        console.error('Error toggling simulation mode:', error);
+        alert('Error toggling simulation mode. Check console for details.');
+        isTogglingSimulation = false;
+      }
+    }
 
-      // Initial status fetch
-      fetch('/api/status')
-        .then(res => res.json())
-        .then(data => {
-          // Detect mode based on response structure
-          if (data.pairs) {
-            isPortfolioMode = true;
-          } else if (data.gridConfig) {
-            isPortfolioMode = false;
-          }
-          updatePortfolioStatus(data);
-          loadGridConfig();
-          loadTradeStats();
-        })
-        .catch(console.error);
+    // Close modals on escape
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        document.querySelectorAll('.modal').forEach(modal => {
+          modal.classList.remove('active');
+        });
+      }
+    });
 
-      // Load config
-      fetch('/api/config')
-        .then(res => res.json())
-        .then(config => {
-          updateSimulationModeUI(config.simulationMode);
-
-          // Update portfolio mode indicator
-          if (config.portfolioMode !== undefined) {
-            isPortfolioMode = config.portfolioMode;
-            const modeBadge = document.getElementById('modeBadge');
-            modeBadge.textContent = isPortfolioMode ? 'PORTFOLIO' : 'SINGLE PAIR';
-            modeBadge.style.background = isPortfolioMode ? '#388bfd20' : '#6e40c920';
-            modeBadge.style.color = isPortfolioMode ? '#58a6ff' : '#a371f7';
-          }
-
-          // Update UI with config values
-          if (config.totalCapital) {
-            document.getElementById('capitalInput').value = config.totalCapital;
-          }
-          if (config.riskStrategy) {
-            document.getElementById('strategySelect').value = config.riskStrategy;
-            document.getElementById('riskStrategy').textContent =
-              config.riskStrategy.charAt(0).toUpperCase() + config.riskStrategy.slice(1);
-          }
-        })
-        .catch(console.error);
+    // Close modal on background click
+    document.querySelectorAll('.modal').forEach(modal => {
+      modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+          modal.classList.remove('active');
+        }
+      });
     });
   </script>
 </body>

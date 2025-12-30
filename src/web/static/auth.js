@@ -165,6 +165,25 @@ function updateAuthUI(authenticated) {
 }
 
 /**
+ * Check authentication status (for manual checks)
+ */
+async function checkAuth() {
+  // If auth is not configured, allow access
+  if (!cognitoConfig || !cognitoConfig.enabled) {
+    return true;
+  }
+
+  // Check if we have a token
+  const token = localStorage.getItem('access_token');
+  if (!token) {
+    redirectToLogin();
+    return false;
+  }
+
+  return true;
+}
+
+/**
  * Fetch with authentication header
  */
 async function fetchWithAuth(url, options = {}) {

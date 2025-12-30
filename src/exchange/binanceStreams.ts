@@ -62,11 +62,29 @@ export class BinanceStreamManager {
       baseUrl = "https://api.binance.us";
     }
 
-    this.restClient = new Binance.MainClient({
+    interface ClientOptions {
+      api_key: string;
+      api_secret: string;
+      baseUrl?: string;
+    }
+
+    const clientOptions: ClientOptions = {
       api_key: config.binanceApiKey,
       api_secret: config.binanceApiSecret,
-      baseUrl,
-    });
+    };
+
+    // For Binance.US, we need to set baseUrl explicitly
+    if (baseUrl) {
+      clientOptions.baseUrl = baseUrl;
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-argument
+    this.restClient = new Binance.MainClient(clientOptions as any);
+
+    logger.info(
+      { baseUrl, binanceUs: config.binanceUs },
+      "REST client initialized for user data stream",
+    );
   }
 
   /**
@@ -402,10 +420,22 @@ export class BinanceStreamManager {
       return;
     }
 
+    // Skip user data stream in simulation mode - we don't need it
+    // Orders are filled locally based on price updates
+    if (config.simulationMode) {
+      logger.info("Skipping user data stream in simulation mode - not needed");
+      return;
+    }
+
     try {
       // Get a listen key for user data stream
       const response = await this.restClient.getSpotUserDataListenKey();
       this.userStreamListenKey = response.listenKey;
+
+      logger.info(
+        { listenKey: this.userStreamListenKey?.substring(0, 10) + "..." },
+        "Got user data stream listen key",
+      );
 
       // Subscribe to user data stream
       void this.wsClient.subscribeSpotUserDataStream();
@@ -413,10 +443,16 @@ export class BinanceStreamManager {
       // Keep the listen key alive (must be done every 30 minutes)
       this.startListenKeyKeepAlive();
 
-      logger.info("User data stream started");
+      logger.info("User data stream started successfully");
     } catch (error) {
-      logger.error({ error }, "Failed to start user data stream");
-      throw error;
+      logger.error(
+        { error, binanceUs: config.binanceUs },
+        "Failed to start user data stream - this is expected in simulation mode or if using Binance.US",
+      );
+      // Don't throw in simulation mode, just log the warning
+      if (!config.simulationMode) {
+        throw error;
+      }
     }
   }
 

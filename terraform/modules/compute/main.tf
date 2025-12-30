@@ -262,7 +262,7 @@ resource "aws_lb" "main" {
 
 # Target Group
 resource "aws_lb_target_group" "main" {
-  name        = "${var.project_name}-${var.environment}-tg"
+  name_prefix = "${substr(var.project_name, 0, min(length(var.project_name), 6))}-"
   port        = 3002
   protocol    = "HTTP"
   vpc_id      = var.vpc_id
@@ -281,6 +281,10 @@ resource "aws_lb_target_group" "main" {
   }
 
   deregistration_delay = 30
+
+  lifecycle {
+    create_before_destroy = true
+  }
 
   tags = {
     Name = "${var.project_name}-${var.environment}-tg"

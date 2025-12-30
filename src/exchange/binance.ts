@@ -240,11 +240,16 @@ export class BinanceClient {
     }
 
     try {
+      // Use POST_ONLY (GTX) for maker-only orders (lower fees)
+      // Falls back to GTC if POST_ONLY is disabled
+      const usePostOnly = process.env.POST_ONLY_ORDERS === "true";
+      const timeInForce = usePostOnly ? "GTX" : "GTC";
+
       const result = await this.client.submitNewOrder({
         symbol: config.tradingPair,
         side: side as "BUY" | "SELL",
         type: "LIMIT",
-        timeInForce: "GTC",
+        timeInForce: timeInForce as "GTC" | "GTX",
         price: roundedPrice,
         quantity: roundedQuantity,
         newClientOrderId: clientOrderId,

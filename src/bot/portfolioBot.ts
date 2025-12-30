@@ -5,6 +5,14 @@ import { binanceStreams, TickerData } from "../exchange/binanceStreams.js";
 import { PortfolioRiskManager } from "./portfolioRisk.js";
 import { correlationAnalyzer } from "../analysis/correlation.js";
 import { tradingDb } from "../models/database.js";
+import { notificationService } from "../services/notifications.js";
+import { priceSimulator } from "../services/priceSimulator.js";
+import {
+  detectTrend,
+  calculateDynamicGridSpacing,
+  pricesToBars,
+  calculateMinProfitableSpacing,
+} from "../utils/indicators.js";
 import type {
   PairConfig,
   PortfolioState,
@@ -64,10 +72,17 @@ export class PortfolioGridBot {
   private useWebSocket: boolean = true; // Use WebSocket streams by default
   private wsConnected: boolean = false;
 
+  // Profit Reinvestment Properties
+  private initialCapital: number;
+  private lastReinvestmentCheck: Date | null = null;
+  private reinvestmentThreshold: number = 0.1; // 10% profit threshold
+  private reinvestmentCheckInterval: number = 3600000; // Check every 1 hour
+
   constructor(client: BinanceClient, portfolioConfig: PortfolioConfig) {
     this.client = client;
     this.config = portfolioConfig;
     this.availableCapital = portfolioConfig.totalCapital;
+    this.initialCapital = portfolioConfig.totalCapital; // Track initial capital for profit reinvestment
     this.riskManager = new PortfolioRiskManager(portfolioConfig.riskStrategy);
 
     logger.info(
@@ -161,6 +176,12 @@ export class PortfolioGridBot {
       if (this.pricePollingInterval) {
         clearInterval(this.pricePollingInterval);
         this.pricePollingInterval = null;
+      }
+
+      // Stop price simulator if running
+      if (config.simulationMode && priceSimulator.getStatus().running) {
+        priceSimulator.stop();
+        logger.info("Price simulator stopped");
       }
 
       // Disconnect WebSocket streams
@@ -638,7 +659,10 @@ export class PortfolioGridBot {
   // ===========================================================================
 
   private async startPriceStreams(): Promise<void> {
-    if (this.useWebSocket) {
+    // Check if we should use price simulator (simulation mode)
+    if (config.simulationMode && priceSimulator.getStatus().enabled) {
+      await this.startPriceSimulator();
+    } else if (this.useWebSocket) {
       await this.startWebSocketStreams();
     } else {
       await this.startPollingStreams();
@@ -706,7 +730,7 @@ export class PortfolioGridBot {
     const { symbol, price, priceChangePercent, volume } = ticker;
 
     // Update price
-    this.handlePriceUpdate(symbol, price);
+    void this.handlePriceUpdate(symbol, price);
 
     // Log significant price changes
     if (Math.abs(priceChangePercent) > 5) {
@@ -727,7 +751,7 @@ export class PortfolioGridBot {
     for (const [symbol] of this.pairBots) {
       try {
         const price = await this.fetchPriceForSymbol(symbol);
-        this.handlePriceUpdate(symbol, price);
+        void this.handlePriceUpdate(symbol, price);
       } catch (error) {
         logger.error({ error, symbol }, "Failed to fetch initial price");
       }
@@ -753,7 +777,7 @@ export class PortfolioGridBot {
             logger.debug({ symbol }, "Fetching price for symbol");
             const price = await this.fetchPriceForSymbol(symbol);
             logger.debug({ symbol, price }, "Price fetched successfully");
-            this.handlePriceUpdate(symbol, price);
+            void this.handlePriceUpdate(symbol, price);
           } catch (error) {
             logger.error({ error, symbol }, "Failed to fetch price");
           }
@@ -783,7 +807,69 @@ export class PortfolioGridBot {
     }
   }
 
-  private handlePriceUpdate(symbol: string, price: number): void {
+  /**
+   * Start price simulator for testing (simulation mode only)
+   */
+  private async startPriceSimulator(): Promise<void> {
+    logger.info("Starting price simulator for testing...");
+
+    // Initialize prices for all pairs
+    for (const [symbol, pairBot] of this.pairBots) {
+      try {
+        // Get current price from exchange or use mid-grid price
+        let initialPrice: number;
+        try {
+          initialPrice = await this.fetchPriceForSymbol(symbol);
+        } catch (error) {
+          // Fallback to mid-grid price if exchange call fails
+          initialPrice =
+            (pairBot.config.gridUpper + pairBot.config.gridLower) / 2;
+          logger.warn(
+            { symbol, initialPrice },
+            "Using mid-grid price for simulation",
+          );
+        }
+
+        // Initialize simulator for this symbol
+        priceSimulator.initializePrice(symbol, initialPrice);
+
+        // Update pair bot with initial price
+        void this.handlePriceUpdate(symbol, initialPrice);
+
+        logger.info(
+          { symbol, initialPrice: initialPrice.toFixed(6) },
+          "Price initialized for simulator",
+        );
+      } catch (error) {
+        logger.error(
+          { error, symbol },
+          "Failed to initialize price for simulator",
+        );
+      }
+    }
+
+    // Register callback for price updates
+    priceSimulator.onPriceUpdate((symbol: string, price: number) => {
+      void this.handlePriceUpdate(symbol, price);
+    });
+
+    // Start the simulator
+    priceSimulator.start();
+
+    logger.info(
+      {
+        pairs: Array.from(this.pairBots.keys()),
+        updateInterval: `${priceSimulator.getStatus().config.updateInterval / 1000}s`,
+        volatility: `${(priceSimulator.getStatus().config.volatility * 100).toFixed(0)}%`,
+      },
+      "Price simulator started successfully",
+    );
+  }
+
+  private async handlePriceUpdate(
+    symbol: string,
+    price: number,
+  ): Promise<void> {
     const pairBot = this.pairBots.get(symbol);
     if (!pairBot) return;
 
@@ -803,7 +889,53 @@ export class PortfolioGridBot {
       pairBot.unrealizedPnl = (price - avgBuyPrice) * pairBot.positionSize;
     }
 
-    // Check if price is outside grid range
+    // ==========================================================================
+    // 1. GRID RANGE STOP-LOSS (20% beyond grid boundaries)
+    // ==========================================================================
+    const stopLossLower = pairBot.config.gridLower * 0.8; // 20% below lower bound
+    const stopLossUpper = pairBot.config.gridUpper * 1.2; // 20% above upper bound
+
+    if (price < stopLossLower) {
+      logger.error(
+        {
+          symbol,
+          price,
+          stopLossLower,
+          gridLower: pairBot.config.gridLower,
+          breachPercent: (
+            ((stopLossLower - price) / stopLossLower) *
+            100
+          ).toFixed(2),
+        },
+        "🚨 STOP-LOSS TRIGGERED: Price breached lower grid boundary",
+      );
+
+      // Emergency stop for this pair
+      await this.emergencyStopPair(symbol, "LOWER_STOP_LOSS_BREACH");
+      return;
+    }
+
+    if (price > stopLossUpper) {
+      logger.error(
+        {
+          symbol,
+          price,
+          stopLossUpper,
+          gridUpper: pairBot.config.gridUpper,
+          breachPercent: (
+            ((price - stopLossUpper) / stopLossUpper) *
+            100
+          ).toFixed(2),
+        },
+        "🚨 STOP-LOSS TRIGGERED: Price breached upper grid boundary",
+      );
+
+      // Emergency stop for this pair
+      await this.emergencyStopPair(symbol, "UPPER_STOP_LOSS_BREACH");
+      return;
+    }
+
+    // Warning zone (5% beyond grid range but not yet stop-loss)
     if (
       price < pairBot.config.gridLower * 0.95 ||
       price > pairBot.config.gridUpper * 1.05
@@ -815,8 +947,94 @@ export class PortfolioGridBot {
           gridLower: pairBot.config.gridLower,
           gridUpper: pairBot.config.gridUpper,
         },
-        "Price outside grid range",
+        "⚠️ Price approaching grid boundary (warning zone)",
       );
+    }
+
+    // ==========================================================================
+    // 2. TREND DETECTION (Auto-pause in strong trends)
+    // ==========================================================================
+    try {
+      // Get price history for trend analysis
+      const priceHistory = tradingDb.getPriceHistory(symbol, 30);
+
+      if (priceHistory && priceHistory.length >= 50) {
+        const prices = priceHistory.map((p: { price: number }) => p.price);
+        const timestamps = priceHistory.map(
+          (p: { timestamp: number }) => p.timestamp,
+        );
+        const bars = pricesToBars(prices, timestamps);
+
+        // Detect trend
+        const trendData = detectTrend(prices, 20, 50, 25, bars);
+
+        // Auto-pause if strong trend detected
+        if (trendData.shouldPause) {
+          logger.warn(
+            {
+              symbol,
+              direction: trendData.direction,
+              strength: trendData.strength.toFixed(2),
+            },
+            `🔶 Strong ${trendData.direction.toUpperCase()} detected - pausing grid to prevent losses`,
+          );
+
+          await this.pausePairForTrend(symbol, trendData);
+          return;
+        }
+
+        // ==========================================================================
+        // 3. DYNAMIC GRID SPACING (ATR-based suggestions)
+        // ==========================================================================
+        if (bars.length >= 15) {
+          const dynamicSpacing = calculateDynamicGridSpacing(bars, 14, 1.0);
+          const currentSpacing =
+            pairBot.gridLevels.length > 1
+              ? Math.abs(
+                  pairBot.gridLevels[1].price - pairBot.gridLevels[0].price,
+                )
+              : 0;
+
+          // Check if current spacing is significantly different from optimal
+          const spacingDiff = Math.abs(
+            dynamicSpacing.suggestedSpacing - currentSpacing,
+          );
+          const spacingDiffPercent = (spacingDiff / currentSpacing) * 100;
+
+          if (spacingDiffPercent > 30) {
+            logger.info(
+              {
+                symbol,
+                currentSpacing: currentSpacing.toFixed(6),
+                suggestedSpacing: dynamicSpacing.suggestedSpacing.toFixed(6),
+                atr: dynamicSpacing.atr.toFixed(6),
+                volatility: dynamicSpacing.volatilityLevel,
+                diffPercent: spacingDiffPercent.toFixed(1),
+              },
+              "💡 Grid spacing suboptimal - consider rebalancing",
+            );
+          }
+
+          // ==========================================================================
+          // 4. FEE-AWARE CHECK (Minimum profitable spacing)
+          // ==========================================================================
+          const minSpacing = calculateMinProfitableSpacing(price, 0.001); // 0.1% Binance.US fee
+          if (currentSpacing < minSpacing) {
+            logger.warn(
+              {
+                symbol,
+                currentSpacing: currentSpacing.toFixed(6),
+                minProfitableSpacing: minSpacing.toFixed(6),
+                feeRate: "0.1%",
+              },
+              "⚠️ Grid spacing too small - trades will lose money to fees!",
+            );
+          }
+        }
+      }
+    } catch (error) {
+      // Don't crash on trend detection errors
+      logger.debug({ error, symbol }, "Trend detection skipped");
     }
 
     // Update correlation data (append to existing history)
@@ -850,6 +1068,9 @@ export class PortfolioGridBot {
 
   private checkAndRebalance(): void {
     if (this.status !== "running") return;
+
+    // Check for profit reinvestment opportunities
+    this.checkProfitReinvestment();
 
     const state = this.getPortfolioState();
     const actions = this.riskManager.suggestRebalance(state);
@@ -889,6 +1110,114 @@ export class PortfolioGridBot {
     pairBot.config.amountPerGrid *= adjustmentFactor;
 
     // Could also cancel and replace orders here for more aggressive rebalancing
+  }
+
+  // ===========================================================================
+  // PROFIT REINVESTMENT
+  // ===========================================================================
+
+  /**
+   * Check if profits exceed threshold and reinvest by increasing capital allocation
+   */
+  private checkProfitReinvestment(): void {
+    if (this.status !== "running") return;
+
+    // Don't check too frequently
+    const now = Date.now();
+    if (
+      this.lastReinvestmentCheck &&
+      now - this.lastReinvestmentCheck.getTime() <
+        this.reinvestmentCheckInterval
+    ) {
+      return;
+    }
+
+    this.lastReinvestmentCheck = new Date();
+
+    // Calculate total realized PnL across all pairs
+    let totalRealizedPnl = 0;
+    for (const [, pairBot] of this.pairBots) {
+      totalRealizedPnl += pairBot.realizedPnl;
+    }
+
+    // Calculate profit percentage
+    const profitPercent = totalRealizedPnl / this.initialCapital;
+
+    // Check if profit exceeds threshold
+    if (profitPercent >= this.reinvestmentThreshold) {
+      this.executeProfitReinvestment(totalRealizedPnl, profitPercent);
+    } else {
+      logger.debug(
+        {
+          profitPercent: (profitPercent * 100).toFixed(2) + "%",
+          threshold: (this.reinvestmentThreshold * 100).toFixed(2) + "%",
+          totalRealizedPnl: totalRealizedPnl.toFixed(2),
+        },
+        "Profit below reinvestment threshold",
+      );
+    }
+  }
+
+  /**
+   * Execute profit reinvestment by increasing total capital and rebalancing
+   */
+  private executeProfitReinvestment(
+    totalRealizedPnl: number,
+    profitPercent: number,
+  ): void {
+    const oldCapital = this.config.totalCapital;
+    const newCapital = this.initialCapital + totalRealizedPnl;
+    const capitalIncrease = newCapital - oldCapital;
+
+    logger.info(
+      {
+        oldCapital: oldCapital.toFixed(2),
+        newCapital: newCapital.toFixed(2),
+        increase: capitalIncrease.toFixed(2),
+        profitPercent: (profitPercent * 100).toFixed(2) + "%",
+        totalRealizedPnl: totalRealizedPnl.toFixed(2),
+      },
+      "💰 Executing profit reinvestment - compounding gains into larger positions",
+    );
+
+    // Update total capital
+    this.config.totalCapital = newCapital;
+    this.availableCapital += capitalIncrease;
+
+    // Increase grid order sizes proportionally for all pairs
+    const scaleFactor = newCapital / oldCapital;
+    for (const [symbol, pairBot] of this.pairBots) {
+      const oldAmount = pairBot.config.amountPerGrid;
+      const newAmount = oldAmount * scaleFactor;
+
+      pairBot.config.amountPerGrid = newAmount;
+      pairBot.positionValue *= scaleFactor;
+
+      logger.info(
+        {
+          symbol,
+          oldAmount: oldAmount.toFixed(4),
+          newAmount: newAmount.toFixed(4),
+          scaleFactor: scaleFactor.toFixed(4),
+        },
+        "Increased grid order size",
+      );
+    }
+
+    // Update risk manager with new portfolio value
+    this.riskManager.updatePortfolioValue(newCapital);
+
+    // Send success alert via notifications
+    void notificationService.success(
+      "Profit Reinvestment Executed",
+      `Successfully reinvested ${capitalIncrease.toFixed(2)} USDT profit (${(profitPercent * 100).toFixed(2)}%). Grid order sizes increased proportionally.`,
+      {
+        "Old Capital": `${oldCapital.toFixed(2)} USDT`,
+        "New Capital": `${newCapital.toFixed(2)} USDT`,
+        "Profit Reinvested": `${capitalIncrease.toFixed(2)} USDT`,
+        Return: `${(profitPercent * 100).toFixed(2)}%`,
+      },
+    );
   }
 
   // ===========================================================================
@@ -1331,6 +1660,155 @@ export class PortfolioGridBot {
 
     this.pairBots.delete(symbol);
     logger.info({ symbol }, "Pair removed from portfolio");
+  }
+
+  // ===========================================================================
+  // ADVANCED RISK MANAGEMENT
+  // ===========================================================================
+
+  /**
+   * Emergency stop for a specific pair (stop-loss triggered)
+   */
+  private async emergencyStopPair(
+    symbol: string,
+    reason: string,
+  ): Promise<void> {
+    const pairBot = this.pairBots.get(symbol);
+    if (!pairBot) return;
+
+    logger.error(
+      { symbol, reason },
+      `🛑 EMERGENCY STOP: Stopping ${symbol} - ${reason}`,
+    );
+
+    // Cancel all active orders for this pair
+    await this.stopPairBot(symbol, pairBot);
+
+    // Update status to paused
+    pairBot.status = "paused";
+
+    // Log risk event
+
+    // Emit WebSocket notification
+
+    // Send critical alert via notifications
+    void notificationService.critical(
+      `Emergency Stop: ${symbol}`,
+      `Trading has been emergency stopped for ${symbol} due to ${reason}. All orders have been cancelled.`,
+      {
+        Symbol: symbol,
+        Reason: reason,
+        Price: pairBot.currentPrice.toString(),
+        "Grid Range": `${pairBot.config.gridLower} - ${pairBot.config.gridUpper}`,
+      },
+    );
+
+    logger.info(
+      { symbol, reason },
+      `✅ ${symbol} stopped safely - all orders cancelled`,
+    );
+  }
+
+  /**
+   * Pause a pair due to detected trend
+   */
+  private async pausePairForTrend(
+    symbol: string,
+    trendData: { direction: string; strength: number },
+  ): Promise<void> {
+    const pairBot = this.pairBots.get(symbol);
+    if (!pairBot) return;
+
+    // Don't pause if already paused
+    if (pairBot.status === "paused") return;
+
+    logger.warn(
+      { symbol, trend: trendData },
+      `⏸️  Pausing ${symbol} due to strong ${trendData.direction}`,
+    );
+
+    // Cancel all active orders but don't remove the pair
+    await this.stopPairBot(symbol, pairBot);
+
+    // Update status to paused
+    pairBot.status = "paused";
+
+    // Log risk event
+
+    // Schedule auto-resume check in 1 hour
+    setTimeout(
+      () => {
+        void this.checkTrendAndResume(symbol);
+      },
+      60 * 60 * 1000,
+    );
+
+    // Emit WebSocket notification
+
+    // Send warning alert via notifications
+    void notificationService.warning(
+      `Trend Pause: ${symbol}`,
+      `Trading paused for ${symbol} due to strong ${trendData.direction}. Auto-resume check scheduled in 1 hour.`,
+      {
+        Symbol: symbol,
+        Trend: trendData.direction.toUpperCase(),
+        Strength: trendData.strength.toFixed(2),
+        "Auto-Resume": "1 hour",
+      },
+    );
+
+    logger.info(
+      { symbol },
+      `✅ ${symbol} paused - will auto-check trend in 1 hour`,
+    );
+  }
+
+  /**
+   * Check if trend has ended and resume pair
+   */
+  private async checkTrendAndResume(symbol: string): Promise<void> {
+    const pairBot = this.pairBots.get(symbol);
+    if (!pairBot || pairBot.status !== "paused") return;
+
+    try {
+      const priceHistory = tradingDb.getPriceHistory(symbol, 30);
+      if (!priceHistory || priceHistory.length < 50) return;
+
+      const prices = priceHistory.map((p: { price: number }) => p.price);
+      const timestamps = priceHistory.map(
+        (p: { timestamp: number }) => p.timestamp,
+      );
+      const bars = pricesToBars(prices, timestamps);
+
+      const trendData = detectTrend(prices, 20, 50, 25, bars);
+
+      // If trend is no longer strong, resume
+      if (!trendData.shouldPause) {
+        logger.info(
+          { symbol },
+          `✅ Trend subsided for ${symbol} - resuming grid trading`,
+        );
+
+        // Resume pair
+        await this.startPairBot(symbol, pairBot);
+        pairBot.status = "running";
+      } else {
+        logger.info(
+          { symbol, trend: trendData },
+          `Trend still strong for ${symbol} - remaining paused`,
+        );
+
+        // Check again in 1 hour
+        setTimeout(
+          () => {
+            void this.checkTrendAndResume(symbol);
+          },
+          60 * 60 * 1000,
+        );
+      }
+    } catch (error) {
+      logger.error({ error, symbol }, "Error checking trend for resume");
+    }
   }
 
   updateRiskStrategy(strategy: RiskStrategy): void {
