@@ -13,21 +13,20 @@ jest.mock('../../src/utils/logger.js', () => ({
   }),
 }));
 
-// Create a mock function that will be shared
-const createMockGetPriceHistory = jest.fn();
+// Create mock implementation - must be hoisted before jest.mock
+let mockPriceHistoryData: Array<{ timestamp: number; price: number }> = [];
+
+const mockGetPriceHistoryImpl = jest.fn(() => mockPriceHistoryData);
 
 jest.mock('../../src/models/database.js', () => ({
   tradingDb: {
-    getPriceHistory: (...args: any[]) => createMockGetPriceHistory(...args),
+    getPriceHistory: mockGetPriceHistoryImpl,
   },
 }));
 
 // Import after mocks
 import { GridBacktester, backtestPairConfig, optimizeGridParameters } from '../../src/bot/backtesting.js';
 import type { PairConfig } from '../../src/types/portfolio.js';
-
-// Get reference to the mock for test configuration
-const mockGetPriceHistory = createMockGetPriceHistory;
 
 describe('GridBacktester', () => {
   // Use fixed timestamp to ensure consistency between test dates and mock data
@@ -62,8 +61,8 @@ describe('GridBacktester', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    // Mock returns price history for all calls - both for backtesting and for getting current price
-    mockGetPriceHistory.mockReturnValue(mockPriceHistory);
+    // Set the mock data that will be returned by getPriceHistory
+    mockPriceHistoryData = mockPriceHistory;
   });
 
   describe('GridBacktester - Initialization', () => {
@@ -363,8 +362,9 @@ describe('GridBacktester', () => {
     });
 
     it.skip('should throw error when no price history found', () => {
-      // TODO: Fix mock to properly simulate empty price history
-      mockGetPriceHistory.mockReturnValueOnce([]);
+      // TODO: Mock closure doesn't work for mutating data during test execution
+      // This test would require restructuring the mock pattern
+      mockPriceHistoryData = [];
 
       expect(() => {
         optimizeGridParameters(
@@ -374,6 +374,9 @@ describe('GridBacktester', () => {
           1000
         );
       }).toThrow('No price history found for DOGEUSDT');
+
+      // Restore for other tests
+      mockPriceHistoryData = mockPriceHistory;
     });
   });
 });
