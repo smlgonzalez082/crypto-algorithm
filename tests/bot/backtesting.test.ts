@@ -13,8 +13,11 @@ jest.mock('../../src/utils/logger.js', () => ({
   }),
 }));
 
-// Create mock implementation - must be hoisted before jest.mock
-const mockGetPriceHistoryImpl = jest.fn();
+// Create mock data reference that will be used by the mock
+let mockPriceHistoryData: Array<{ timestamp: number; price: number }> = [];
+
+// Create mock implementation that reads from mockPriceHistoryData
+const mockGetPriceHistoryImpl = jest.fn(() => mockPriceHistoryData);
 
 jest.mock('../../src/models/database.js', () => ({
   tradingDb: {
@@ -58,9 +61,10 @@ describe('GridBacktester', () => {
   ];
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    // Reset mock calls but keep implementation
+    mockGetPriceHistoryImpl.mockClear();
     // Set the mock data that will be returned by getPriceHistory
-    mockGetPriceHistoryImpl.mockReturnValue(mockPriceHistory);
+    mockPriceHistoryData = mockPriceHistory;
   });
 
   describe('GridBacktester - Initialization', () => {
