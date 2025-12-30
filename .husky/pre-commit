@@ -28,16 +28,17 @@ npm run typecheck || {
   exit 1
 }
 
-# 4. Run security-critical tests (non-blocking for now)
+# 4. Run unit tests (blocking - must pass to commit)
 echo ""
 echo "🧪 Running unit tests..."
 npm run test:unit || {
-  echo "⚠️  Warning: Some tests failed. Review before pushing."
-  echo "   (Commit allowed - please fix tests before merging)"
+  echo "❌ Unit tests failed. Please fix failing tests before committing."
+  exit 1
 }
 
 echo ""
 echo "✅ Pre-commit checks passed!"
 echo "   Linting: ✓"
 echo "   Type checking: ✓"
+echo "   Unit tests: ✓"
 echo "   Security validations: ✓"

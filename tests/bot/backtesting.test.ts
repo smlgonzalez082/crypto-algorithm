@@ -4,9 +4,6 @@
 
 import { jest } from '@jest/globals';
 
-// Mock dependencies BEFORE imports
-const mockGetPriceHistory = jest.fn();
-
 jest.mock('../../src/utils/logger.js', () => ({
   createLogger: () => ({
     info: jest.fn(),
@@ -16,17 +13,21 @@ jest.mock('../../src/utils/logger.js', () => ({
   }),
 }));
 
+// Create a mock function that will be shared
+const createMockGetPriceHistory = jest.fn();
+
 jest.mock('../../src/models/database.js', () => ({
   tradingDb: {
-    get getPriceHistory() {
-      return mockGetPriceHistory;
-    },
+    getPriceHistory: (...args: any[]) => createMockGetPriceHistory(...args),
   },
 }));
 
 // Import after mocks
 import { GridBacktester, backtestPairConfig, optimizeGridParameters } from '../../src/bot/backtesting.js';
 import type { PairConfig } from '../../src/types/portfolio.js';
+
+// Get reference to the mock for test configuration
+const mockGetPriceHistory = createMockGetPriceHistory;
 
 describe('GridBacktester', () => {
   // Use fixed timestamp to ensure consistency between test dates and mock data
@@ -61,6 +62,7 @@ describe('GridBacktester', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    // Mock returns price history for all calls - both for backtesting and for getting current price
     mockGetPriceHistory.mockReturnValue(mockPriceHistory);
   });
 

@@ -25,14 +25,10 @@ These checks **will block your commit** if they fail:
    - Catches type errors before runtime
    - Critical for preventing bugs
 
-### ⚠️ Non-Blocking Checks
-
-These checks **will warn but allow commit**:
-
 4. **🧪 Unit Tests** - Runs all unit tests
-   - Warns if tests fail
-   - Allows commit to proceed
-   - **Please fix failing tests before merging to main!**
+   - **BLOCKING** - Commit will fail if tests fail
+   - Ensures code quality and prevents regressions
+   - Critical for maintaining codebase stability
 
 ## Pre-Commit Flow
 
@@ -47,7 +43,7 @@ git commit -m "message"
     ↓
 🔎 TypeScript type check... ✓
     ↓
-🧪 Running tests... ⚠️  (non-blocking)
+🧪 Running unit tests... ✓
     ↓
 ✅ Pre-commit checks passed!
     ↓
@@ -165,7 +161,7 @@ The pre-commit hook matches what CI/CD will check:
 | ----------------- | ----------- | ----------- |
 | Linting           | ✅ Blocking | ✅ Blocking |
 | Type Check        | ✅ Blocking | ✅ Blocking |
-| Unit Tests        | ⚠️ Warning  | ✅ Blocking |
+| Unit Tests        | ✅ Blocking | ✅ Blocking |
 | Integration Tests | ❌ Skipped  | ✅ Blocking |
 
 **Note:** Integration tests are skipped in pre-commit for speed but run in CI/CD.
