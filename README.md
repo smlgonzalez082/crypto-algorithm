@@ -58,9 +58,9 @@ git push origin main
 ### Local Development
 
 ```bash
-# 1. Use Node.js 20 (recommended via nvm)
+# 1. Use Node.js 22 (recommended via nvm)
 nvm use
-# Or install: nvm install 20
+# Or install: nvm install 22
 
 # 2. Install dependencies
 npm install
@@ -78,13 +78,13 @@ open http://localhost:3002
 
 ## 📋 Requirements
 
-- **Node.js** 20.x (LTS) - **Required for compatibility**
-- **npm** 9.0.0 or higher
+- **Node.js** 22.x - **Required for compatibility**
+- **npm** 10.0.0 or higher
 - **Binance.US Account** with API access
 - **AWS Account** (for production deployment)
 - **Minimum Capital**: $500 per trading pair recommended
 
-> **Note**: Node 20.x is required for consistent behavior across local development, CI/CD, and production. Use `nvm use` to automatically switch to the correct version.
+> **Note**: Node 22.x is required for consistent behavior across local development, CI/CD, and production. Use `nvm use` to automatically switch to the correct version.
 
 ## 🏗️ Architecture
 
