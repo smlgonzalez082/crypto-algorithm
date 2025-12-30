@@ -64,7 +64,9 @@ describe('GridBacktester', () => {
     // Reset mock calls but keep implementation
     mockGetPriceHistoryImpl.mockClear();
     // Set the mock data that will be returned by getPriceHistory
-    mockPriceHistoryData = mockPriceHistory;
+    // IMPORTANT: Mutate the array instead of reassigning to preserve the closure reference
+    mockPriceHistoryData.length = 0;
+    mockPriceHistoryData.push(...mockPriceHistory);
   });
 
   describe('GridBacktester - Initialization', () => {
