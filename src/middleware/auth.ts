@@ -158,3 +158,13 @@ export async function optionalAuth(
 
   next();
 }
+
+/**
+ * Get the Cognito JWT verifier instance
+ * Used for WebSocket authentication
+ */
+export function getCognitoVerifier(): ReturnType<
+  typeof CognitoJwtVerifier.create
+> | null {
+  return accessTokenVerifier;
+}

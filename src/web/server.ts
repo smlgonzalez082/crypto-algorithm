@@ -4,6 +4,9 @@ import { createServer } from "http";
 import { WebSocketServer, WebSocket } from "ws";
 import path from "path";
 import { fileURLToPath } from "url";
+import rateLimit from "express-rate-limit";
+import helmet from "helmet";
+import cors from "cors";
 import { createLogger } from "../utils/logger.js";
 import {
   config,
@@ -21,10 +24,19 @@ import {
   optimizeGridParameters,
 } from "../bot/backtesting.js";
 import { analyticsService } from "../services/analytics.js";
+import { tradingDb } from "../models/database.js";
 import type {
   RiskStrategy,
   PairConfig as IPairConfig,
 } from "../types/portfolio.js";
+import {
+  validateBody,
+  BacktestSchema,
+  OptimizeGridSchema,
+  AddPairSchema,
+  UpdateStrategySchema,
+  ToggleSimulationSchema,
+} from "../middleware/validation.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -61,13 +73,27 @@ export class WebServer {
     this.riskManager = new RiskManager();
     this.isPortfolioMode = config.portfolioMode;
 
+    // Validate authentication requirements in production
+    const isProduction = process.env.NODE_ENV === "production";
+    if (
+      isProduction &&
+      (!config.cognitoUserPoolId || !config.cognitoClientId)
+    ) {
+      logger.error(
+        "Authentication is required in production mode. Please configure COGNITO_USER_POOL_ID and COGNITO_CLIENT_ID",
+      );
+      throw new Error(
+        "Security Error: Authentication must be enabled in production mode",
+      );
+    }
+
     // Initialize Cognito authentication if configured
     if (config.cognitoUserPoolId && config.cognitoClientId) {
       initCognitoVerifier(config.cognitoUserPoolId, config.cognitoClientId);
       logger.info("Cognito authentication enabled");
     } else {
-      logger.info(
-        "Cognito not configured, authentication disabled (local dev mode)",
+      logger.warn(
+        "⚠️  WARNING: Authentication disabled - Development mode only!",
       );
     }
 
@@ -77,7 +103,73 @@ export class WebServer {
   }
 
   private setupMiddleware(): void {
-    this.app.use(express.json());
+    // Security headers
+    this.app.use(
+      helmet({
+        contentSecurityPolicy: {
+          directives: {
+            defaultSrc: ["'self'"],
+            styleSrc: ["'self'", "'unsafe-inline'"],
+            scriptSrc: ["'self'", "'unsafe-inline'"],
+            imgSrc: ["'self'", "data:", "https:"],
+          },
+        },
+      }),
+    );
+
+    // CORS configuration
+    const allowedOrigins = process.env.ALLOWED_ORIGINS
+      ? process.env.ALLOWED_ORIGINS.split(",")
+      : ["http://localhost:3000", "http://localhost:3001"];
+
+    this.app.use(
+      cors({
+        origin: (origin, callback) => {
+          // Allow requests with no origin (mobile apps, Postman, etc.)
+          if (!origin) return callback(null, true);
+
+          if (allowedOrigins.includes(origin)) {
+            callback(null, true);
+          } else {
+            logger.warn({ origin }, "Blocked by CORS policy");
+            callback(new Error("Not allowed by CORS"));
+          }
+        },
+        credentials: true,
+        methods: ["GET", "POST", "PUT", "DELETE"],
+        allowedHeaders: ["Content-Type", "Authorization"],
+        maxAge: 86400, // 24 hours
+      }),
+    );
+
+    // Body parser
+    this.app.use(express.json({ limit: "1mb" }));
+
+    // Global rate limiter
+    const globalLimiter = rateLimit({
+      windowMs: 15 * 60 * 1000, // 15 minutes
+      max: 1000, // Limit each IP to 1000 requests per window
+      message: "Too many requests from this IP, please try again later.",
+      standardHeaders: true,
+      legacyHeaders: false,
+    });
+    this.app.use(globalLimiter);
+
+    // API rate limiter
+    const apiLimiter = rateLimit({
+      windowMs: 15 * 60 * 1000,
+      max: 100,
+      message: "Too many API requests, please try again later.",
+    });
+    this.app.use("/api/", apiLimiter);
+
+    // Expensive operations rate limiter
+    const backtestLimiter = rateLimit({
+      windowMs: 60 * 60 * 1000, // 1 hour
+      max: 10,
+      message: "Backtest limit exceeded, please try again later.",
+    });
+    this.app.use("/api/backtest", backtestLimiter);
 
     // Apply authentication to all /api/* routes except public endpoints
     this.app.use("/api/*", (req, res, next) => {
@@ -566,7 +658,7 @@ export class WebServer {
     // Start bot (single pair mode - legacy)
     this.app.post(
       "/api/start",
-      asyncHandler(async (_req: Request, res: Response) => {
+      asyncHandler(async (req: Request, res: Response) => {
         if (this.isPortfolioMode) {
           res
             .status(400)
@@ -585,6 +677,17 @@ export class WebServer {
         this.bot = new GridBot(this.binanceClient, this.riskManager);
         await this.bot.start();
         this.startStatusBroadcast();
+
+        // Audit log
+        tradingDb.logRiskEvent({
+          eventType: "BOT_STARTED",
+          description: `Single pair bot started for ${config.tradingPair}`,
+          actionTaken: "Bot started",
+        });
+        logger.info(
+          { user: req.user?.username, pair: config.tradingPair },
+          "Bot started",
+        );
 
         res.json({ message: "Bot started successfully" });
       }),
@@ -625,6 +728,26 @@ export class WebServer {
         await this.portfolioBot.start();
         this.startStatusBroadcast();
 
+        // Audit log
+        const pairSymbols = Array.isArray(pairs)
+          ? pairs.map((p) => p.symbol).join(", ")
+          : "default pairs";
+        tradingDb.logRiskEvent({
+          eventType: "PORTFOLIO_BOT_STARTED",
+          description: `Portfolio bot started with ${pairSymbols}`,
+          value: totalCapital,
+          actionTaken: `Strategy: ${riskStrategy}`,
+        });
+        logger.info(
+          {
+            user: req.user?.username,
+            pairs: pairSymbols,
+            capital: totalCapital,
+            strategy: riskStrategy,
+          },
+          "Portfolio bot started",
+        );
+
         res.json({
           message: "Portfolio bot started successfully",
           pairs: Array.isArray(pairs) ? pairs.map((p) => p.symbol) : [],
@@ -637,10 +760,19 @@ export class WebServer {
     // Stop bot
     this.app.post(
       "/api/stop",
-      asyncHandler(async (_req: Request, res: Response) => {
+      asyncHandler(async (req: Request, res: Response) => {
         if (this.isPortfolioMode && this.portfolioBot) {
           await this.portfolioBot.stop();
           this.stopStatusBroadcast();
+
+          // Audit log
+          tradingDb.logRiskEvent({
+            eventType: "PORTFOLIO_BOT_STOPPED",
+            description: "Portfolio bot stopped by user",
+            actionTaken: "Bot stopped",
+          });
+          logger.info({ user: req.user?.username }, "Portfolio bot stopped");
+
           res.json({ message: "Portfolio bot stopped successfully" });
           return;
         }
@@ -653,6 +785,14 @@ export class WebServer {
         await this.bot.stop();
         this.stopStatusBroadcast();
 
+        // Audit log
+        tradingDb.logRiskEvent({
+          eventType: "BOT_STOPPED",
+          description: "Single pair bot stopped by user",
+          actionTaken: "Bot stopped",
+        });
+        logger.info({ user: req.user?.username }, "Bot stopped");
+
         res.json({ message: "Bot stopped successfully" });
       }),
     );
@@ -660,6 +800,7 @@ export class WebServer {
     // Add pair to portfolio
     this.app.post(
       "/api/portfolio/pair",
+      validateBody(AddPairSchema),
       asyncHandler(async (req: Request, res: Response) => {
         if (!this.portfolioBot) {
           res.status(400).json({ error: "Portfolio bot not running" });
@@ -738,51 +879,95 @@ export class WebServer {
     );
 
     // Update risk strategy
-    this.app.put("/api/portfolio/strategy", (req: Request, res: Response) => {
-      if (!this.portfolioBot) {
-        res.status(400).json({ error: "Portfolio bot not running" });
-        return;
-      }
+    this.app.put(
+      "/api/portfolio/strategy",
+      validateBody(UpdateStrategySchema),
+      (req: Request, res: Response) => {
+        if (!this.portfolioBot) {
+          res.status(400).json({ error: "Portfolio bot not running" });
+          return;
+        }
 
-      const { strategy } = req.body as { strategy: RiskStrategy };
-      this.portfolioBot.updateRiskStrategy(strategy);
-      res.json({ message: `Risk strategy updated to ${strategy}` });
-    });
+        const { strategy } = req.body as { strategy: RiskStrategy };
+        this.portfolioBot.updateRiskStrategy(strategy);
+
+        // Audit log
+        tradingDb.logRiskEvent({
+          eventType: "RISK_STRATEGY_CHANGED",
+          description: `Risk strategy updated to ${strategy}`,
+          actionTaken: `New strategy: ${strategy}`,
+        });
+        logger.warn(
+          { user: req.user?.username, strategy },
+          "Risk strategy changed",
+        );
+
+        res.json({ message: `Risk strategy updated to ${strategy}` });
+      },
+    );
 
     // Toggle simulation mode
-    this.app.put("/api/simulation", (req: Request, res: Response) => {
-      const { enabled } = req.body as { enabled: boolean };
+    this.app.put(
+      "/api/simulation",
+      validateBody(ToggleSimulationSchema),
+      (req: Request, res: Response) => {
+        const { enabled, confirmLiveTrading } = req.body as {
+          enabled: boolean;
+          confirmLiveTrading?: boolean;
+        };
 
-      // Check if bot is running
-      const isRunning =
-        (this.portfolioBot &&
-          this.portfolioBot.getStatus().status === "running") ||
-        (this.bot && this.bot.getStatus().status === "running");
+        // Require confirmation for live trading
+        if (!enabled && !confirmLiveTrading) {
+          res.status(400).json({
+            error: "Live trading requires explicit confirmation",
+            message: "Set confirmLiveTrading: true to enable live trading mode",
+          });
+          return;
+        }
 
-      if (isRunning) {
-        res.status(400).json({
-          error:
-            "Cannot change simulation mode while bot is running. Stop the bot first.",
+        // Check if bot is running
+        const isRunning =
+          (this.portfolioBot &&
+            this.portfolioBot.getStatus().status === "running") ||
+          (this.bot && this.bot.getStatus().status === "running");
+
+        if (isRunning) {
+          res.status(400).json({
+            error:
+              "Cannot change simulation mode while bot is running. Stop the bot first.",
+          });
+          return;
+        }
+
+        // Update config - this modifies the runtime config object
+        (config as { simulationMode: boolean }).simulationMode = enabled;
+
+        // Audit log
+        tradingDb.logRiskEvent({
+          eventType: "SIMULATION_MODE_CHANGED",
+          description: `Simulation mode ${enabled ? "enabled" : "disabled"}`,
+          value: enabled ? 1 : 0,
+          actionTaken: enabled ? "Simulation enabled" : "LIVE TRADING enabled",
         });
-        return;
-      }
+        logger.warn(
+          { simulationMode: enabled, user: req.user?.username },
+          "Simulation mode changed",
+        );
 
-      // Update config - this modifies the runtime config object
-      (config as { simulationMode: boolean }).simulationMode = enabled;
-
-      logger.info({ simulationMode: enabled }, "Simulation mode updated");
-      res.json({
-        message: `Simulation mode ${enabled ? "enabled" : "disabled"}`,
-        simulationMode: enabled,
-        warning: enabled
-          ? null
-          : "LIVE TRADING ENABLED - Real orders will be placed!",
-      });
-    });
+        res.json({
+          message: `Simulation mode ${enabled ? "enabled" : "disabled"}`,
+          simulationMode: enabled,
+          warning: enabled
+            ? null
+            : "⚠️  LIVE TRADING ENABLED - Real orders will be placed!",
+        });
+      },
+    );
 
     // Backtesting endpoints
     this.app.post(
       "/api/backtest",
+      validateBody(BacktestSchema),
       asyncHandler(async (req: Request, res: Response) => {
         const {
           symbol,
@@ -792,7 +977,7 @@ export class WebServer {
           amountPerGrid,
           startDate,
           endDate,
-          initialCapital = 1000,
+          initialCapital,
         } = req.body as {
           symbol: string;
           gridLower: number;
@@ -801,21 +986,8 @@ export class WebServer {
           amountPerGrid: number;
           startDate: string;
           endDate: string;
-          initialCapital?: number;
+          initialCapital: number;
         };
-
-        if (
-          !symbol ||
-          !gridLower ||
-          !gridUpper ||
-          !gridCount ||
-          !amountPerGrid ||
-          !startDate ||
-          !endDate
-        ) {
-          res.status(400).json({ error: "Missing required parameters" });
-          return;
-        }
 
         // Extract base and quote assets from symbol
         const baseAsset = symbol.replace(/USDT?$/, "");
@@ -853,23 +1025,14 @@ export class WebServer {
     // Optimize grid parameters using backtesting
     this.app.post(
       "/api/backtest/optimize",
+      validateBody(OptimizeGridSchema),
       asyncHandler(async (req: Request, res: Response) => {
-        const {
-          symbol,
-          startDate,
-          endDate,
-          initialCapital = 1000,
-        } = req.body as {
+        const { symbol, startDate, endDate, initialCapital } = req.body as {
           symbol: string;
           startDate: string;
           endDate: string;
-          initialCapital?: number;
+          initialCapital: number;
         };
-
-        if (!symbol || !startDate || !endDate) {
-          res.status(400).json({ error: "Missing required parameters" });
-          return;
-        }
 
         try {
           const result = optimizeGridParameters(
@@ -891,34 +1054,99 @@ export class WebServer {
     this.app.get("*", (_req: Request, res: Response) => {
       res.sendFile(path.join(__dirname, "static", "index.html"));
     });
+
+    // Global error handler (must be last)
+    this.app.use(
+      (err: Error, req: Request, res: Response, _next: NextFunction) => {
+        logger.error(
+          { err, url: req.url, method: req.method },
+          "Unhandled error",
+        );
+
+        // Don't send error details if headers already sent
+        if (res.headersSent) {
+          return;
+        }
+
+        // In production, don't leak error details
+        const isDevelopment = process.env.NODE_ENV !== "production";
+        res.status(500).json({
+          error: "Internal server error",
+          ...(isDevelopment && {
+            details: err.message,
+            stack: err.stack?.split("\n").slice(0, 5),
+          }),
+        });
+      },
+    );
   }
 
   private setupWebSocket(): void {
-    this.wss.on("connection", (ws: WebSocket) => {
-      logger.info("WebSocket client connected");
-      this.clients.add(ws);
+    this.wss.on("connection", (ws: WebSocket, req) => {
+      void (async () => {
+        try {
+          // Extract token from query string
+          const url = new URL(req.url || "", "ws://localhost");
+          const token = url.searchParams.get("token");
 
-      // Send initial status
-      if (this.isPortfolioMode && this.portfolioBot) {
-        ws.send(
-          JSON.stringify({
-            type: "portfolio",
-            data: this.portfolioBot.getStatus(),
-          }),
-        );
-      } else if (this.bot) {
-        ws.send(JSON.stringify({ type: "status", data: this.bot.getStatus() }));
-      }
+          // Authenticate WebSocket connection (skip if auth not configured)
+          if (config.cognitoUserPoolId && config.cognitoClientId) {
+            if (!token) {
+              logger.warn(
+                "WebSocket connection rejected: No authentication token",
+              );
+              ws.close(1008, "Authentication required");
+              return;
+            }
 
-      ws.on("close", () => {
-        logger.info("WebSocket client disconnected");
-        this.clients.delete(ws);
-      });
+            // Verify token using the same JWT verifier
+            const { getCognitoVerifier } =
+              await import("../middleware/auth.js");
+            const verifier = getCognitoVerifier();
+            if (verifier) {
+              try {
+                await verifier.verify(token);
+                logger.info("Authenticated WebSocket client connected");
+              } catch (error) {
+                logger.warn({ error }, "WebSocket authentication failed");
+                ws.close(1008, "Authentication failed");
+                return;
+              }
+            }
+          } else {
+            logger.debug("WebSocket auth skipped (dev mode)");
+          }
 
-      ws.on("error", (error) => {
-        logger.error({ error }, "WebSocket error");
-        this.clients.delete(ws);
-      });
+          this.clients.add(ws);
+
+          // Send initial status
+          if (this.isPortfolioMode && this.portfolioBot) {
+            ws.send(
+              JSON.stringify({
+                type: "portfolio",
+                data: this.portfolioBot.getStatus(),
+              }),
+            );
+          } else if (this.bot) {
+            ws.send(
+              JSON.stringify({ type: "status", data: this.bot.getStatus() }),
+            );
+          }
+
+          ws.on("close", () => {
+            logger.info("WebSocket client disconnected");
+            this.clients.delete(ws);
+          });
+
+          ws.on("error", (error) => {
+            logger.error({ error }, "WebSocket error");
+            this.clients.delete(ws);
+          });
+        } catch (error) {
+          logger.error({ error }, "WebSocket connection error");
+          ws.close(1011, "Internal error");
+        }
+      })();
     });
   }
 
