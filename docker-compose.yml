@@ -26,6 +26,9 @@ services:
       - SIMULATION_MODE=${SIMULATION_MODE:-true}
       - LOG_LEVEL=${LOG_LEVEL:-info}
       - SERVER_PORT=8000
+      - COGNITO_USER_POOL_ID=${COGNITO_USER_POOL_ID}
+      - COGNITO_CLIENT_ID=${COGNITO_CLIENT_ID}
+      - COGNITO_REGION=${COGNITO_REGION:-us-east-1}
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8000/api/health"]
       interval: 30s
