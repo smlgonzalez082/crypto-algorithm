@@ -23,6 +23,10 @@ grep COGNITO .env
 echo "🛑 Stopping existing containers..."
 sudo /usr/local/bin/docker-compose down
 
+# Rebuild Docker image with updated Dockerfile
+echo "🔨 Rebuilding Docker image..."
+sudo /usr/local/bin/docker-compose build --no-cache
+
 # Start new containers
 echo "▶️  Starting application on port 9090..."
 sudo /usr/local/bin/docker-compose up -d
