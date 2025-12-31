@@ -13,15 +13,14 @@ jest.mock('../../src/utils/logger.js', () => ({
   }),
 }));
 
-// Create mock data reference that will be used by the mock
-let mockPriceHistoryData: Array<{ timestamp: number; price: number }> = [];
-
-// Create mock implementation that reads from mockPriceHistoryData
-const mockGetPriceHistoryImpl = jest.fn(() => mockPriceHistoryData);
+// Create mock function
+const mockGetPriceHistory = jest.fn();
 
 jest.mock('../../src/models/database.js', () => ({
   tradingDb: {
-    getPriceHistory: mockGetPriceHistoryImpl,
+    get getPriceHistory() {
+      return mockGetPriceHistory;
+    },
   },
 }));
 
@@ -61,12 +60,8 @@ describe('GridBacktester', () => {
   ];
 
   beforeEach(() => {
-    // Reset mock calls but keep implementation
-    mockGetPriceHistoryImpl.mockClear();
-    // Set the mock data that will be returned by getPriceHistory
-    // IMPORTANT: Mutate the array instead of reassigning to preserve the closure reference
-    mockPriceHistoryData.length = 0;
-    mockPriceHistoryData.push(...mockPriceHistory);
+    mockGetPriceHistory.mockClear();
+    mockGetPriceHistory.mockReturnValue(mockPriceHistory);
   });
 
   describe('GridBacktester - Initialization', () => {
@@ -369,7 +364,7 @@ describe('GridBacktester', () => {
       // TODO: This test requires isolating the mock from beforeEach
       // The beforeEach sets mockReturnValue to mockPriceHistory, which interferes
       // with trying to test the empty array case
-      mockGetPriceHistoryImpl.mockReturnValue([]);
+      mockGetPriceHistory.mockReturnValue([]);
 
       expect(() => {
         optimizeGridParameters(
