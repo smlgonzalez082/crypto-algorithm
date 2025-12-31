@@ -17,8 +17,8 @@
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "test:e2e:debug": "playwright test --debug",
-    "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch",
-    "test:coverage": "NODE_OPTIONS=--experimental-vm-modules jest --coverage",
+    "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest tests/bot tests/middleware tests/analysis --watch",
+    "test:coverage": "NODE_OPTIONS=--experimental-vm-modules jest tests/bot tests/middleware tests/analysis --coverage",
     "test:all": "npm run test && npm run test:e2e",
     "typecheck": "tsc --noEmit",
     "prepare": "husky"
