@@ -365,6 +365,10 @@ export function optimizeGridParameters(
   startDate: Date,
   endDate: Date,
   initialCapital: number = 1000,
+  priceHistoryProvider?: (
+    symbol: string,
+    days: number,
+  ) => Array<{ timestamp: number; price: number }>,
 ): {
   bestConfig: PairConfig;
   bestMetrics: BacktestMetrics;
@@ -375,7 +379,10 @@ export function optimizeGridParameters(
   const results: Array<{ config: PairConfig; metrics: BacktestMetrics }> = [];
 
   // Get current price to determine ranges
-  const recentPrices = tradingDb.getPriceHistory(symbol, 7);
+  const priceProvider =
+    priceHistoryProvider ||
+    ((sym, days) => tradingDb.getPriceHistory(sym, days));
+  const recentPrices = priceProvider(symbol, 7);
   if (recentPrices.length === 0) {
     throw new Error(`No price history found for ${symbol}`);
   }

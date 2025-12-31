@@ -13,16 +13,11 @@ jest.mock('../../src/utils/logger.js', () => ({
   }),
 }));
 
-// Create a shared mock function that will be used across all tests
-const mockGetPriceHistory = jest.fn();
-
-jest.mock('../../src/models/database.js', () => {
-  return {
-    tradingDb: {
-      getPriceHistory: () => mockGetPriceHistory(),
-    },
-  };
-});
+jest.mock('../../src/models/database.js', () => ({
+  tradingDb: {
+    getPriceHistory: jest.fn(),
+  },
+}));
 
 // Import after mocks
 import { GridBacktester, backtestPairConfig, optimizeGridParameters } from '../../src/bot/backtesting.js';
@@ -59,10 +54,8 @@ describe('GridBacktester', () => {
     { timestamp: BASE_TIMESTAMP + DAY_MS * 19, price: 0.15 },
   ];
 
-  beforeEach(() => {
-    mockGetPriceHistory.mockReset();
-    mockGetPriceHistory.mockImplementation(() => mockPriceHistory);
-  });
+  // Price history provider for tests - returns mockPriceHistory
+  const testPriceProvider = () => mockPriceHistory;
 
   describe('GridBacktester - Initialization', () => {
     it('should initialize with correct configuration', () => {
@@ -323,7 +316,8 @@ describe('GridBacktester', () => {
         'DOGEUSDT',
         TEST_START_DATE,
         TEST_END_DATE,
-        1000
+        1000,
+        testPriceProvider
       );
 
       expect(result).toBeDefined();
@@ -338,7 +332,8 @@ describe('GridBacktester', () => {
         'DOGEUSDT',
         TEST_START_DATE,
         TEST_END_DATE,
-        1000
+        1000,
+        testPriceProvider
       );
 
       // Should test gridCounts [5, 8, 10, 15, 20] * rangeMultipliers [0.15, 0.20, 0.25, 0.30] = 20 configs
@@ -350,7 +345,8 @@ describe('GridBacktester', () => {
         'DOGEUSDT',
         TEST_START_DATE,
         TEST_END_DATE,
-        1000
+        1000,
+        testPriceProvider
       );
 
       // Best config should have the highest Sharpe ratio
@@ -360,18 +356,16 @@ describe('GridBacktester', () => {
       expect(bestSharpe).toBeGreaterThanOrEqual(Math.max(...allSharpes));
     });
 
-    it.skip('should throw error when no price history found', () => {
-      // TODO: This test requires isolating the mock from beforeEach
-      // The beforeEach sets mockReturnValue to mockPriceHistory, which interferes
-      // with trying to test the empty array case
-      mockGetPriceHistory.mockReturnValue([]);
+    it('should throw error when no price history found', () => {
+      const emptyPriceProvider = () => [];
 
       expect(() => {
         optimizeGridParameters(
           'DOGEUSDT',
           TEST_START_DATE,
           TEST_END_DATE,
-          1000
+          1000,
+          emptyPriceProvider
         );
       }).toThrow('No price history found for DOGEUSDT');
     });
