@@ -13,16 +13,16 @@ jest.mock('../../src/utils/logger.js', () => ({
   }),
 }));
 
-// Create mock function
+// Create a shared mock function that will be used across all tests
 const mockGetPriceHistory = jest.fn();
 
-jest.mock('../../src/models/database.js', () => ({
-  tradingDb: {
-    get getPriceHistory() {
-      return mockGetPriceHistory;
+jest.mock('../../src/models/database.js', () => {
+  return {
+    tradingDb: {
+      getPriceHistory: () => mockGetPriceHistory(),
     },
-  },
-}));
+  };
+});
 
 // Import after mocks
 import { GridBacktester, backtestPairConfig, optimizeGridParameters } from '../../src/bot/backtesting.js';
@@ -60,8 +60,8 @@ describe('GridBacktester', () => {
   ];
 
   beforeEach(() => {
-    mockGetPriceHistory.mockClear();
-    mockGetPriceHistory.mockReturnValue(mockPriceHistory);
+    mockGetPriceHistory.mockReset();
+    mockGetPriceHistory.mockImplementation(() => mockPriceHistory);
   });
 
   describe('GridBacktester - Initialization', () => {
