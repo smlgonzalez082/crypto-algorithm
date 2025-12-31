@@ -262,7 +262,7 @@ resource "aws_lb" "main" {
 
 # Target Group
 resource "aws_lb_target_group" "main" {
-  name_prefix = "${substr(var.project_name, 0, min(length(var.project_name), 6))}-"
+  name_prefix = "${substr(var.project_name, 0, min(length(var.project_name), 5))}-"
   port        = 3002
   protocol    = "HTTP"
   vpc_id      = var.vpc_id
