@@ -3,6 +3,18 @@ import { createLogger } from "./utils/logger.js";
 
 const logger = createLogger("main");
 
+// Handle unhandled promise rejections
+process.on("unhandledRejection", (reason, promise) => {
+  logger.error({ reason, promise }, "Unhandled Promise Rejection");
+  process.exit(1);
+});
+
+// Handle uncaught exceptions
+process.on("uncaughtException", (error) => {
+  logger.error({ error }, "Uncaught Exception");
+  process.exit(1);
+});
+
 async function main(): Promise<void> {
   logger.info("Starting Crypto Grid Trading Bot...");
 
@@ -30,6 +42,7 @@ async function main(): Promise<void> {
 
   try {
     await server.start();
+    logger.info("Server started successfully, entering event loop");
   } catch (error) {
     logger.error({ error }, "Failed to start server");
     process.exit(1);
