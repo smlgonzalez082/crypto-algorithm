@@ -6,7 +6,7 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: trading-bot
-    restart: "no"
+    restart: unless-stopped
     ports:
       - "9090:9090"
     volumes:
@@ -29,13 +29,12 @@ services:
       - COGNITO_USER_POOL_ID=${COGNITO_USER_POOL_ID}
       - COGNITO_CLIENT_ID=${COGNITO_CLIENT_ID}
       - COGNITO_REGION=${COGNITO_REGION:-us-east-1}
-    # Healthcheck temporarily disabled for debugging
-    # healthcheck:
-    #   test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9090/api/health"]
-    #   interval: 30s
-    #   timeout: 10s
-    #   retries: 3
-    #   start_period: 10s
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9090/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
     logging:
       driver: "json-file"
       options:
