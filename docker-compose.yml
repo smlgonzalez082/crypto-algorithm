@@ -6,7 +6,7 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: trading-bot
-    restart: unless-stopped
+    restart: "no"
     ports:
       - "9090:9090"
     volumes:

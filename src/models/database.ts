@@ -1,17 +1,18 @@
-import Database from 'better-sqlite3';
-import path from 'path';
-import fs from 'fs';
-import { fileURLToPath } from 'url';
-import { createLogger } from '../utils/logger.js';
-import type { GridLevelState } from '../types/portfolio.js';
+import Database from "better-sqlite3";
+import path from "path";
+import fs from "fs";
+import { fileURLToPath } from "url";
+import { createLogger } from "../utils/logger.js";
+import type { GridLevelState } from "../types/portfolio.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const logger = createLogger('database');
+const logger = createLogger("database");
 
 // Database file location
-const DB_PATH = process.env.DB_PATH || path.join(__dirname, '../../data/trading.db');
+const DB_PATH =
+  process.env.DB_PATH || path.join(__dirname, "../../data/trading.db");
 
 class TradingDatabase {
   private db: Database.Database | null = null;
@@ -29,13 +30,13 @@ class TradingDatabase {
       }
 
       this.db = new Database(DB_PATH);
-      this.db.pragma('journal_mode = WAL');
-      this.db.pragma('foreign_keys = ON');
+      this.db.pragma("journal_mode = WAL");
+      this.db.pragma("foreign_keys = ON");
 
       this.createTables();
-      logger.info({ path: DB_PATH }, 'Database initialized');
+      logger.info({ path: DB_PATH }, "Database initialized");
     } catch (error) {
-      logger.error({ error }, 'Failed to initialize database');
+      logger.error({ error }, "Failed to initialize database");
       throw error;
     }
   }
@@ -144,7 +145,7 @@ class TradingDatabase {
       CREATE INDEX IF NOT EXISTS idx_price_history_timestamp ON price_history(timestamp);
     `);
 
-    logger.debug('Database tables created');
+    logger.debug("Database tables created");
   }
 
   // ==========================================================================
@@ -155,7 +156,7 @@ class TradingDatabase {
     tradeId: string;
     orderId: string;
     symbol: string;
-    side: 'BUY' | 'SELL';
+    side: "BUY" | "SELL";
     price: number;
     quantity: number;
     commission?: number;
@@ -184,15 +185,18 @@ class TradingDatabase {
       trade.commissionAsset || null,
       trade.realizedPnl || 0,
       trade.gridLevel || null,
-      trade.executedAt.toISOString()
+      trade.executedAt.toISOString(),
     );
   }
 
-  getTrades(symbol?: string, limit = 100): {
+  getTrades(
+    symbol?: string,
+    limit = 100,
+  ): {
     tradeId: string;
     orderId: string;
     symbol: string;
-    side: 'BUY' | 'SELL';
+    side: "BUY" | "SELL";
     price: number;
     quantity: number;
     commission: number;
@@ -202,22 +206,22 @@ class TradingDatabase {
   }[] {
     if (!this.db) return [];
 
-    let query = 'SELECT * FROM trades';
+    let query = "SELECT * FROM trades";
     const params: (string | number)[] = [];
 
     if (symbol) {
-      query += ' WHERE symbol = ?';
+      query += " WHERE symbol = ?";
       params.push(symbol);
     }
 
-    query += ' ORDER BY executed_at DESC LIMIT ?';
+    query += " ORDER BY executed_at DESC LIMIT ?";
     params.push(limit);
 
     const rows = this.db.prepare(query).all(...params) as {
       trade_id: string;
       order_id: string;
       symbol: string;
-      side: 'BUY' | 'SELL';
+      side: "BUY" | "SELL";
       price: number;
       quantity: number;
       commission: number;
@@ -226,7 +230,7 @@ class TradingDatabase {
       executed_at: string;
     }[];
 
-    return rows.map(row => ({
+    return rows.map((row) => ({
       tradeId: row.trade_id,
       orderId: row.order_id,
       symbol: row.symbol,
@@ -243,12 +247,16 @@ class TradingDatabase {
   getDailyPnl(date: Date = new Date()): number {
     if (!this.db) return 0;
 
-    const dateStr = date.toISOString().split('T')[0];
-    const result = this.db.prepare(`
+    const dateStr = date.toISOString().split("T")[0];
+    const result = this.db
+      .prepare(
+        `
       SELECT COALESCE(SUM(realized_pnl), 0) as total
       FROM trades
       WHERE DATE(executed_at) = DATE(?)
-    `).get(dateStr) as { total: number };
+    `,
+      )
+      .get(dateStr) as { total: number };
 
     return result?.total || 0;
   }
@@ -275,24 +283,28 @@ class TradingDatabase {
           level.buyOrderId,
           level.sellOrderId,
           level.status,
-          level.filledAt?.toISOString() || null
+          level.filledAt?.toISOString() || null,
         );
       }
     });
 
     transaction();
-    logger.debug({ symbol, levels: levels.length }, 'Grid state saved');
+    logger.debug({ symbol, levels: levels.length }, "Grid state saved");
   }
 
   getGridState(symbol: string): GridLevelState[] {
     if (!this.db) return [];
 
-    const rows = this.db.prepare(`
+    const rows = this.db
+      .prepare(
+        `
       SELECT level, price, buy_order_id, sell_order_id, status, filled_at
       FROM grid_states
       WHERE symbol = ?
       ORDER BY level
-    `).all(symbol) as {
+    `,
+      )
+      .all(symbol) as {
       level: number;
       price: number;
       buy_order_id: string | null;
@@ -301,19 +313,19 @@ class TradingDatabase {
       filled_at: string | null;
     }[];
 
-    return rows.map(row => ({
+    return rows.map((row) => ({
       level: row.level,
       price: row.price,
       buyOrderId: row.buy_order_id,
       sellOrderId: row.sell_order_id,
-      status: row.status as GridLevelState['status'],
+      status: row.status as GridLevelState["status"],
       filledAt: row.filled_at ? new Date(row.filled_at) : null,
     }));
   }
 
   clearGridState(symbol: string): void {
     if (!this.db) return;
-    this.db.prepare('DELETE FROM grid_states WHERE symbol = ?').run(symbol);
+    this.db.prepare("DELETE FROM grid_states WHERE symbol = ?").run(symbol);
   }
 
   // ==========================================================================
@@ -332,21 +344,25 @@ class TradingDatabase {
   }): void {
     if (!this.db) return;
 
-    this.db.prepare(`
+    this.db
+      .prepare(
+        `
       INSERT OR REPLACE INTO pair_states (
         symbol, status, current_price, position_size, position_value,
         realized_pnl, unrealized_pnl, trades_count, updated_at
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
-    `).run(
-      state.symbol,
-      state.status,
-      state.currentPrice,
-      state.positionSize,
-      state.positionValue,
-      state.realizedPnl,
-      state.unrealizedPnl,
-      state.tradesCount
-    );
+    `,
+      )
+      .run(
+        state.symbol,
+        state.status,
+        state.currentPrice,
+        state.positionSize,
+        state.positionValue,
+        state.realizedPnl,
+        state.unrealizedPnl,
+        state.tradesCount,
+      );
   }
 
   getPairState(symbol: string): {
@@ -361,18 +377,24 @@ class TradingDatabase {
   } | null {
     if (!this.db) return null;
 
-    const row = this.db.prepare(`
+    const row = this.db
+      .prepare(
+        `
       SELECT * FROM pair_states WHERE symbol = ?
-    `).get(symbol) as {
-      symbol: string;
-      status: string;
-      current_price: number;
-      position_size: number;
-      position_value: number;
-      realized_pnl: number;
-      unrealized_pnl: number;
-      trades_count: number;
-    } | undefined;
+    `,
+      )
+      .get(symbol) as
+      | {
+          symbol: string;
+          status: string;
+          current_price: number;
+          position_size: number;
+          position_value: number;
+          realized_pnl: number;
+          unrealized_pnl: number;
+          trades_count: number;
+        }
+      | undefined;
 
     if (!row) return null;
 
@@ -400,7 +422,7 @@ class TradingDatabase {
   }[] {
     if (!this.db) return [];
 
-    const rows = this.db.prepare('SELECT * FROM pair_states').all() as {
+    const rows = this.db.prepare("SELECT * FROM pair_states").all() as {
       symbol: string;
       status: string;
       current_price: number;
@@ -411,7 +433,7 @@ class TradingDatabase {
       trades_count: number;
     }[];
 
-    return rows.map(row => ({
+    return rows.map((row) => ({
       symbol: row.symbol,
       status: row.status,
       currentPrice: row.current_price,
@@ -438,20 +460,24 @@ class TradingDatabase {
   }): void {
     if (!this.db) return;
 
-    this.db.prepare(`
+    this.db
+      .prepare(
+        `
       INSERT INTO portfolio_snapshots (
         total_value, available_capital, allocated_capital,
         total_pnl, daily_pnl, drawdown, status
       ) VALUES (?, ?, ?, ?, ?, ?, ?)
-    `).run(
-      snapshot.totalValue,
-      snapshot.availableCapital,
-      snapshot.allocatedCapital,
-      snapshot.totalPnl,
-      snapshot.dailyPnl,
-      snapshot.drawdown,
-      snapshot.status
-    );
+    `,
+      )
+      .run(
+        snapshot.totalValue,
+        snapshot.availableCapital,
+        snapshot.allocatedCapital,
+        snapshot.totalPnl,
+        snapshot.dailyPnl,
+        snapshot.drawdown,
+        snapshot.status,
+      );
   }
 
   getLatestPortfolioSnapshot(): {
@@ -466,18 +492,24 @@ class TradingDatabase {
   } | null {
     if (!this.db) return null;
 
-    const row = this.db.prepare(`
+    const row = this.db
+      .prepare(
+        `
       SELECT * FROM portfolio_snapshots ORDER BY created_at DESC LIMIT 1
-    `).get() as {
-      total_value: number;
-      available_capital: number;
-      allocated_capital: number;
-      total_pnl: number;
-      daily_pnl: number;
-      drawdown: number;
-      status: string;
-      created_at: string;
-    } | undefined;
+    `,
+      )
+      .get() as
+      | {
+          total_value: number;
+          available_capital: number;
+          allocated_capital: number;
+          total_pnl: number;
+          daily_pnl: number;
+          drawdown: number;
+          status: string;
+          created_at: string;
+        }
+      | undefined;
 
     if (!row) return null;
 
@@ -507,20 +539,24 @@ class TradingDatabase {
   }): void {
     if (!this.db) return;
 
-    this.db.prepare(`
+    this.db
+      .prepare(
+        `
       INSERT INTO risk_events (
         event_type, symbol, description, value, threshold, action_taken
       ) VALUES (?, ?, ?, ?, ?, ?)
-    `).run(
-      event.eventType,
-      event.symbol || null,
-      event.description,
-      event.value || null,
-      event.threshold || null,
-      event.actionTaken || null
-    );
+    `,
+      )
+      .run(
+        event.eventType,
+        event.symbol || null,
+        event.description,
+        event.value || null,
+        event.threshold || null,
+        event.actionTaken || null,
+      );
 
-    logger.info({ event }, 'Risk event logged');
+    logger.info({ event }, "Risk event logged");
   }
 
   getRecentRiskEvents(limit = 50): {
@@ -534,9 +570,13 @@ class TradingDatabase {
   }[] {
     if (!this.db) return [];
 
-    const rows = this.db.prepare(`
+    const rows = this.db
+      .prepare(
+        `
       SELECT * FROM risk_events ORDER BY created_at DESC LIMIT ?
-    `).all(limit) as {
+    `,
+      )
+      .all(limit) as {
       event_type: string;
       symbol: string | null;
       description: string;
@@ -546,7 +586,7 @@ class TradingDatabase {
       created_at: string;
     }[];
 
-    return rows.map(row => ({
+    return rows.map((row) => ({
       eventType: row.event_type,
       symbol: row.symbol,
       description: row.description,
@@ -561,31 +601,46 @@ class TradingDatabase {
   // PRICE HISTORY OPERATIONS
   // ==========================================================================
 
-  savePricePoint(symbol: string, price: number, timestamp: Date = new Date()): void {
+  savePricePoint(
+    symbol: string,
+    price: number,
+    timestamp: Date = new Date(),
+  ): void {
     if (!this.db) return;
 
-    this.db.prepare(`
+    this.db
+      .prepare(
+        `
       INSERT OR IGNORE INTO price_history (symbol, price, timestamp)
       VALUES (?, ?, ?)
-    `).run(symbol, price, timestamp.toISOString());
+    `,
+      )
+      .run(symbol, price, timestamp.toISOString());
   }
 
-  getPriceHistory(symbol: string, days = 30): { timestamp: number; price: number }[] {
+  getPriceHistory(
+    symbol: string,
+    days = 30,
+  ): { timestamp: number; price: number }[] {
     if (!this.db) return [];
 
     const cutoff = new Date();
     cutoff.setDate(cutoff.getDate() - days);
 
-    const rows = this.db.prepare(`
+    const rows = this.db
+      .prepare(
+        `
       SELECT price, timestamp FROM price_history
       WHERE symbol = ? AND timestamp >= ?
       ORDER BY timestamp ASC
-    `).all(symbol, cutoff.toISOString()) as {
+    `,
+      )
+      .all(symbol, cutoff.toISOString()) as {
       price: number;
       timestamp: string;
     }[];
 
-    return rows.map(row => ({
+    return rows.map((row) => ({
       timestamp: new Date(row.timestamp).getTime(),
       price: row.price,
     }));
@@ -603,7 +658,15 @@ class TradingDatabase {
     avgPnl: number;
     winRate: number;
   } {
-    if (!this.db) return { totalTrades: 0, winningTrades: 0, losingTrades: 0, totalPnl: 0, avgPnl: 0, winRate: 0 };
+    if (!this.db)
+      return {
+        totalTrades: 0,
+        winningTrades: 0,
+        losingTrades: 0,
+        totalPnl: 0,
+        avgPnl: 0,
+        winRate: 0,
+      };
 
     let query = `
       SELECT
@@ -616,7 +679,7 @@ class TradingDatabase {
     `;
 
     if (symbol) {
-      query += ' WHERE symbol = ?';
+      query += " WHERE symbol = ?";
       const result = this.db.prepare(query).get(symbol) as {
         total_trades: number;
         winning_trades: number;
@@ -631,7 +694,10 @@ class TradingDatabase {
         losingTrades: result.losing_trades,
         totalPnl: result.total_pnl,
         avgPnl: result.avg_pnl,
-        winRate: result.total_trades > 0 ? (result.winning_trades / result.total_trades) * 100 : 0,
+        winRate:
+          result.total_trades > 0
+            ? (result.winning_trades / result.total_trades) * 100
+            : 0,
       };
     }
 
@@ -649,7 +715,10 @@ class TradingDatabase {
       losingTrades: result.losing_trades,
       totalPnl: result.total_pnl,
       avgPnl: result.avg_pnl,
-      winRate: result.total_trades > 0 ? (result.winning_trades / result.total_trades) * 100 : 0,
+      winRate:
+        result.total_trades > 0
+          ? (result.winning_trades / result.total_trades) * 100
+          : 0,
     };
   }
 
@@ -661,7 +730,7 @@ class TradingDatabase {
     if (this.db) {
       this.db.close();
       this.db = null;
-      logger.info('Database closed');
+      logger.info("Database closed");
     }
   }
 }
@@ -669,7 +738,5 @@ class TradingDatabase {
 // Singleton instance
 export const tradingDb = new TradingDatabase();
 
-// Export for cleanup on process exit
-process.on('exit', () => tradingDb.close());
-process.on('SIGINT', () => { tradingDb.close(); process.exit(0); });
-process.on('SIGTERM', () => { tradingDb.close(); process.exit(0); });
+// Note: Process exit handlers are managed in src/index.ts
+// Database cleanup is handled through the shutdown() function

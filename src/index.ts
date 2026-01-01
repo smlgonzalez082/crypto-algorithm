@@ -1,5 +1,6 @@
 import { WebServer } from "./web/server.js";
 import { createLogger } from "./utils/logger.js";
+import { tradingDb } from "./models/database.js";
 
 const logger = createLogger("main");
 
@@ -25,7 +26,8 @@ async function main(): Promise<void> {
     logger.info({ signal }, "Received shutdown signal");
     try {
       await server.stop();
-      logger.info("Server stopped gracefully");
+      tradingDb.close();
+      logger.info("Server and database stopped gracefully");
       process.exit(0);
     } catch (error) {
       logger.error({ error }, "Error during shutdown");
