@@ -389,42 +389,33 @@
           return;
         }
 
-        // Authenticate with Cognito
-        const authResponse = await fetch(`https://cognito-idp.${config.region}.amazonaws.com/`, {
+        // Authenticate via backend
+        const authResponse = await fetch('/api/auth/login', {
           method: 'POST',
           headers: {
-            'Content-Type': 'application/x-amz-json-1.1',
-            'X-Amz-Target': 'AWSCognitoIdentityProviderService.InitiateAuth'
+            'Content-Type': 'application/json'
           },
           body: JSON.stringify({
-            AuthFlow: 'USER_PASSWORD_AUTH',
-            ClientId: config.clientId,
-            AuthParameters: {
-              USERNAME: email,
-              PASSWORD: password
-            }
+            email: email,
+            password: password
           })
         });
 
         const authData = await authResponse.json();
 
         if (!authResponse.ok) {
-          throw new Error(authData.message || 'Authentication failed');
+          throw new Error(authData.error || 'Authentication failed');
         }
 
-        if (authData.AuthenticationResult) {
-          // Store tokens
-          localStorage.setItem('access_token', authData.AuthenticationResult.AccessToken);
-          localStorage.setItem('id_token', authData.AuthenticationResult.IdToken);
-          if (authData.AuthenticationResult.RefreshToken) {
-            localStorage.setItem('refresh_token', authData.AuthenticationResult.RefreshToken);
-          }
-
-          // Redirect to dashboard
-          window.location.href = '/';
-        } else {
-          throw new Error('Authentication failed - no tokens received');
+        // Store tokens
+        localStorage.setItem('access_token', authData.accessToken);
+        localStorage.setItem('id_token', authData.idToken);
+        if (authData.refreshToken) {
+          localStorage.setItem('refresh_token', authData.refreshToken);
         }
+
+        // Redirect to dashboard
+        window.location.href = '/';
       } catch (error) {
         console.error('Login error:', error);
         errorMessage.textContent = error.message || 'Invalid email or password';

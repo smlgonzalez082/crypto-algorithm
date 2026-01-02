@@ -177,7 +177,8 @@ export class WebServer {
       // Note: With /api/* pattern, req.path is "/" and req.originalUrl has the full path
       if (
         req.originalUrl === "/api/health" ||
-        req.originalUrl === "/api/auth/config"
+        req.originalUrl === "/api/auth/config" ||
+        req.originalUrl === "/api/auth/login"
       ) {
         next();
         return;
@@ -207,6 +208,65 @@ export class WebServer {
         region: config.cognitoRegion || null,
         domain: config.cognitoDomain || null,
       });
+    });
+
+    // Login endpoint (public endpoint)
+    this.app.post("/api/auth/login", (req: Request, res: Response) => {
+      void (async () => {
+        try {
+          const body = req.body as Record<string, unknown> | undefined;
+          const email = typeof body?.email === 'string' ? body.email : undefined;
+          const password = typeof body?.password === 'string' ? body.password : undefined;
+
+          if (!email || !password) {
+            res.status(400).json({ error: "Email and password are required" });
+            return;
+          }
+
+          if (!config.cognitoClientId || !config.cognitoRegion) {
+            res.status(500).json({ error: "Authentication not configured" });
+            return;
+          }
+
+          // Import AWS SDK dynamically
+          const { CognitoIdentityProviderClient, InitiateAuthCommand } = await import("@aws-sdk/client-cognito-identity-provider");
+
+          const client = new CognitoIdentityProviderClient({
+            region: config.cognitoRegion,
+          });
+
+          const command = new InitiateAuthCommand({
+            AuthFlow: "USER_PASSWORD_AUTH",
+            ClientId: config.cognitoClientId,
+            AuthParameters: {
+              USERNAME: email,
+              PASSWORD: password,
+            },
+          });
+
+          const response = await client.send(command);
+
+          if (response.AuthenticationResult) {
+            res.json({
+              accessToken: response.AuthenticationResult.AccessToken ?? null,
+              idToken: response.AuthenticationResult.IdToken ?? null,
+              refreshToken: response.AuthenticationResult.RefreshToken ?? null,
+            });
+          } else {
+            res.status(401).json({ error: "Authentication failed" });
+          }
+        } catch (err: unknown) {
+          this.logger.error({ err }, "Login failed");
+          if (err && typeof err === 'object' && 'name' in err) {
+            const awsError = err as { name: string; message?: string };
+            if (awsError.name === "NotAuthorizedException" || awsError.name === "UserNotFoundException") {
+              res.status(401).json({ error: "Invalid email or password" });
+              return;
+            }
+          }
+          res.status(500).json({ error: "Authentication failed" });
+        }
+      })();
     });
 
     // Get bot status (supports both single and portfolio mode)

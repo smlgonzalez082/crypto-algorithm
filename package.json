@@ -42,6 +42,7 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
+    "@aws-sdk/client-cognito-identity-provider": "^3.958.0",
     "aws-jwt-verify": "^5.1.1",
     "better-sqlite3": "^12.5.0",
     "binance": "^2.11.0",
