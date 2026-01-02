@@ -80,7 +80,7 @@ function logout() {
 function updateAuthUI(authenticated) {
   const logoutBtn = document.getElementById('logoutBtn');
   if (logoutBtn) {
-    logoutBtn.style.display = authenticated ? 'block' : 'none';
+    logoutBtn.style.display = authenticated ? 'inline-block' : 'none';
   }
 }
 
