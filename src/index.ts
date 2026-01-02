@@ -78,22 +78,38 @@ async function main(): Promise<void> {
   });
 
   try {
+    logger.info("About to start server...");
     await server.start();
     logger.info("Server started successfully, entering event loop");
 
     // Heartbeat to prove process is alive
     let heartbeatCount = 0;
-    setInterval(() => {
+    logger.info("Setting up heartbeat interval...");
+    const intervalId = setInterval(() => {
       heartbeatCount++;
       logger.info(
         { heartbeat: heartbeatCount, uptime: process.uptime() },
         "Process alive - heartbeat",
       );
     }, 10000); // Every 10 seconds
+    logger.info({ intervalId }, "Heartbeat interval created");
+
+    // Log active handles and requests
+    logger.info("Event loop status:");
+    logger.info(
+      { hasServer: !!server, intervalActive: !!intervalId },
+      "Active resources",
+    );
   } catch (error) {
     logger.error({ error }, "Failed to start server");
     process.exit(1);
   }
+
+  logger.info(
+    "main() function completed - process should stay alive due to server and interval",
+  );
 }
 
+logger.info("Calling main()...");
 void main();
+logger.info("main() called (async, not awaited)");
