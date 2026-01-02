@@ -1257,7 +1257,7 @@
     async function loadGridLevels(symbol) {
       try {
         const response = await fetch(`/api/grid?pair=${symbol}`, {
-          headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+          headers: { 'Authorization': `Bearer ${localStorage.getItem('access_token')}` }
         });
         const data = await response.json();
         renderGrid(data);
@@ -1358,7 +1358,7 @@
     async function loadActiveOrders() {
       try {
         const response = await fetch('/api/orders', {
-          headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+          headers: { 'Authorization': `Bearer ${localStorage.getItem('access_token')}` }
         });
         const data = await response.json();
 
@@ -1478,9 +1478,7 @@
     // Load Status
     async function loadStatus() {
       try {
-        const response = await fetch('/api/status', {
-          headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-        });
+        const response = await fetchWithAuth('/api/status');
         const data = await response.json();
         updateStatus(data);
       } catch (error) {
@@ -1536,7 +1534,7 @@
     async function loadTradeStats() {
       try {
         const response = await fetch('/api/trades/stats', {
-          headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+          headers: { 'Authorization': `Bearer ${localStorage.getItem('access_token')}` }
         });
         const data = await response.json();
 
@@ -1581,7 +1579,7 @@
         const response = await fetch('/api/portfolio/start', {
           method: 'POST',
           headers: {
-            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+            'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
             'Content-Type': 'application/json'
           }
         });
@@ -1624,7 +1622,7 @@
         const response = await fetch('/api/stop', {
           method: 'POST',
           headers: {
-            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+            'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
             'Content-Type': 'application/json'
           }
         });
@@ -1667,7 +1665,7 @@
     async function loadConfigData() {
       try {
         const response = await fetch('/api/config', {
-          headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+          headers: { 'Authorization': `Bearer ${localStorage.getItem('access_token')}` }
         });
         const data = await response.json();
 
@@ -1697,7 +1695,7 @@
         const response = await fetch('/api/portfolio/strategy', {
           method: 'PUT',
           headers: {
-            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+            'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
             'Content-Type': 'application/json'
           },
           body: JSON.stringify({ strategy })
@@ -1717,7 +1715,7 @@
 
       // Check if bot is running
       const statusResponse = await fetch('/api/status', {
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('access_token')}` }
       });
       const status = await statusResponse.json();
       const isRunning = status.status === 'running';
@@ -1726,7 +1724,7 @@
         const response = await fetch('/api/portfolio/pair', {
           method: 'POST',
           headers: {
-            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+            'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
             'Content-Type': 'application/json'
           },
           body: JSON.stringify({ symbol })
@@ -1857,7 +1855,7 @@
       try {
         const url = `/api/trades/history${pair ? `?pair=${pair}` : ''}`;
         const response = await fetch(url, {
-          headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+          headers: { 'Authorization': `Bearer ${localStorage.getItem('access_token')}` }
         });
         const trades = await response.json();
 
@@ -1895,7 +1893,7 @@
     async function loadBalances() {
       try {
         const response = await fetch('/api/balances', {
-          headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+          headers: { 'Authorization': `Bearer ${localStorage.getItem('access_token')}` }
         });
         const balances = await response.json();
 
@@ -1931,7 +1929,7 @@
       try {
         // Load main metrics
         const metricsResponse = await fetch('/api/analytics/metrics', {
-          headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+          headers: { 'Authorization': `Bearer ${localStorage.getItem('access_token')}` }
         });
         const metrics = await metricsResponse.json();
 
@@ -1995,14 +1993,14 @@
 
         // Load and render equity curve
         const equityResponse = await fetch('/api/analytics/equity-curve', {
-          headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+          headers: { 'Authorization': `Bearer ${localStorage.getItem('access_token')}` }
         });
         const equityData = await equityResponse.json();
         renderEquityCurve(equityData);
 
         // Load and render pair performance
         const pairResponse = await fetch('/api/analytics/pair-performance', {
-          headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+          headers: { 'Authorization': `Bearer ${localStorage.getItem('access_token')}` }
         });
         const pairData = await pairResponse.json();
         renderPairPerformance(pairData);
@@ -2134,7 +2132,7 @@
     async function exportTradesCsv() {
       try {
         const response = await fetch('/api/analytics/export-csv', {
-          headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+          headers: { 'Authorization': `Bearer ${localStorage.getItem('access_token')}` }
         });
 
         if (!response.ok) {
@@ -2168,7 +2166,7 @@
         isTogglingSimulation = true;
 
         const response = await fetch('/api/status', {
-          headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+          headers: { 'Authorization': `Bearer ${localStorage.getItem('access_token')}` }
         });
         const status = await response.json();
 
@@ -2196,7 +2194,7 @@
         const toggleResponse = await fetch('/api/simulation', {
           method: 'PUT',
           headers: {
-            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+            'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
             'Content-Type': 'application/json'
           },
           body: JSON.stringify({ enabled: newMode })

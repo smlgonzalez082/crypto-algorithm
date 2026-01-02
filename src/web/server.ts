@@ -145,23 +145,27 @@ export class WebServer {
     // Body parser
     this.app.use(express.json({ limit: "1mb" }));
 
-    // Global rate limiter
-    const globalLimiter = rateLimit({
-      windowMs: 15 * 60 * 1000, // 15 minutes
-      max: 1000, // Limit each IP to 1000 requests per window
-      message: "Too many requests from this IP, please try again later.",
-      standardHeaders: true,
-      legacyHeaders: false,
-    });
-    this.app.use(globalLimiter);
+    // Global rate limiter (disabled in development)
+    if (process.env.NODE_ENV === "production") {
+      const globalLimiter = rateLimit({
+        windowMs: 15 * 60 * 1000, // 15 minutes
+        max: 1000, // Limit each IP to 1000 requests per window
+        message: "Too many requests from this IP, please try again later.",
+        standardHeaders: true,
+        legacyHeaders: false,
+      });
+      this.app.use(globalLimiter);
 
-    // API rate limiter
-    const apiLimiter = rateLimit({
-      windowMs: 15 * 60 * 1000,
-      max: 100,
-      message: "Too many API requests, please try again later.",
-    });
-    this.app.use("/api/", apiLimiter);
+      // API rate limiter
+      const apiLimiter = rateLimit({
+        windowMs: 15 * 60 * 1000,
+        max: 100,
+        message: "Too many API requests, please try again later.",
+      });
+      this.app.use("/api/", apiLimiter);
+    } else {
+      logger.info("Rate limiting disabled for development mode");
+    }
 
     // Expensive operations rate limiter
     const backtestLimiter = rateLimit({
@@ -215,8 +219,10 @@ export class WebServer {
       void (async () => {
         try {
           const body = req.body as Record<string, unknown> | undefined;
-          const email = typeof body?.email === 'string' ? body.email : undefined;
-          const password = typeof body?.password === 'string' ? body.password : undefined;
+          const email =
+            typeof body?.email === "string" ? body.email : undefined;
+          const password =
+            typeof body?.password === "string" ? body.password : undefined;
 
           if (!email || !password) {
             res.status(400).json({ error: "Email and password are required" });
@@ -229,7 +235,8 @@ export class WebServer {
           }
 
           // Import AWS SDK dynamically
-          const { CognitoIdentityProviderClient, InitiateAuthCommand } = await import("@aws-sdk/client-cognito-identity-provider");
+          const { CognitoIdentityProviderClient, InitiateAuthCommand } =
+            await import("@aws-sdk/client-cognito-identity-provider");
 
           const client = new CognitoIdentityProviderClient({
             region: config.cognitoRegion,
@@ -257,9 +264,12 @@ export class WebServer {
           }
         } catch (err: unknown) {
           logger.error({ err }, "Login failed");
-          if (err && typeof err === 'object' && 'name' in err) {
+          if (err && typeof err === "object" && "name" in err) {
             const awsError = err as { name: string; message?: string };
-            if (awsError.name === "NotAuthorizedException" || awsError.name === "UserNotFoundException") {
+            if (
+              awsError.name === "NotAuthorizedException" ||
+              awsError.name === "UserNotFoundException"
+            ) {
               res.status(401).json({ error: "Invalid email or password" });
               return;
             }
