@@ -84,10 +84,21 @@ Once the server is running:
 - `RISK_STRATEGY=moderate` - Risk level (conservative/moderate/aggressive)
 
 ### Authentication (Optional)
-Leave these empty for local development without authentication:
-- `COGNITO_USER_POOL_ID` - AWS Cognito User Pool ID
-- `COGNITO_CLIENT_ID` - AWS Cognito Client ID
-- `COGNITO_REGION` - AWS Region (e.g., us-east-1)
+By default, authentication is **disabled** for local development (easier testing).
+
+To test with authentication locally, add these to `.env`:
+```bash
+COGNITO_USER_POOL_ID=us-east-1_qpNqlBGpq
+COGNITO_CLIENT_ID=6c7ksg2pkqa8plbumsbjhb82ae
+COGNITO_REGION=us-east-1
+COGNITO_DOMAIN=crypto-trading-bot-prod-4ncho9vh
+```
+
+**Login Credentials (when auth is enabled):**
+- Email: `smlgonzalez082@gmail.com`
+- Password: `TradingBot2024!`
+
+When authentication is enabled, you'll see a **🚪 Logout** button in the header.
 
 ## Development Features
 
