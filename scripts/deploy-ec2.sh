@@ -32,13 +32,9 @@ if sudo docker ps -aq --filter name=trading-bot | grep -q .; then
     sleep 2
 fi
 
-# Rebuild Docker image with updated Dockerfile
-echo "🔨 Rebuilding Docker image..."
-sudo /usr/local/bin/docker-compose build --no-cache
-
-# Start new containers
-echo "▶️  Starting application on port 9090..."
-sudo /usr/local/bin/docker-compose up -d
+# Build and start in one operation to avoid race conditions
+echo "🔨 Building and starting application on port 9090..."
+sudo /usr/local/bin/docker-compose up -d --build --force-recreate
 
 # Wait for container to start
 echo "⏳ Waiting for container to initialize..."
