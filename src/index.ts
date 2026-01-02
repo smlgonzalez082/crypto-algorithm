@@ -87,12 +87,17 @@ async function main(): Promise<void> {
     logger.info("Setting up heartbeat interval...");
     const intervalId = setInterval(() => {
       heartbeatCount++;
+      // Use console.error to bypass logger and ensure it appears in Docker logs
+      console.error(
+        `[HEARTBEAT ${heartbeatCount}] Uptime: ${process.uptime()}s - Process is ALIVE!`,
+      );
       logger.info(
         { heartbeat: heartbeatCount, uptime: process.uptime() },
         "Process alive - heartbeat",
       );
-    }, 10000); // Every 10 seconds
+    }, 5000); // Every 5 seconds (reduced from 10 for faster detection)
     logger.info({ intervalId }, "Heartbeat interval created");
+    console.error("[DEBUG] Heartbeat interval created successfully");
 
     // Log active handles and requests
     logger.info("Event loop status:");
