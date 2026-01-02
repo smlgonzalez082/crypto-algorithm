@@ -25,13 +25,6 @@ async function initAuth() {
 
     console.log('Authentication enabled');
 
-    // Check if we're on the OAuth callback
-    const urlParams = new URLSearchParams(window.location.search);
-    if (urlParams.has('code')) {
-      await handleOAuthCallback(urlParams.get('code'));
-      return;
-    }
-
     // Check if user is already authenticated
     accessToken = localStorage.getItem('access_token');
     if (accessToken) {
@@ -56,78 +49,14 @@ async function initAuth() {
 }
 
 /**
- * Redirect to Cognito hosted UI for login
+ * Redirect to custom login page
  */
 function redirectToLogin() {
   if (!cognitoConfig || !cognitoConfig.enabled) return;
 
-  const { domain, clientId } = cognitoConfig;
-  const redirectUri = window.location.origin;
-
-  const loginUrl = `https://${domain}.auth.${cognitoConfig.region}.amazoncognito.com/login?` + new URLSearchParams({
-    client_id: clientId,
-    response_type: 'code',
-    redirect_uri: redirectUri,
-    scope: 'email openid profile'
-  });
-
-  console.log('Redirecting to Cognito login...');
-  window.location.href = loginUrl;
-}
-
-/**
- * Handle OAuth callback with authorization code
- */
-async function handleOAuthCallback(code) {
-  console.log('Handling OAuth callback...');
-
-  try {
-    const { domain, region, clientId } = cognitoConfig;
-    const cognitoDomain = `https://${domain}.auth.${region}.amazoncognito.com`;
-    const redirectUri = window.location.origin;
-
-    // Exchange authorization code for tokens
-    const tokenResponse = await fetch(`${cognitoDomain}/oauth2/token`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-      },
-      body: new URLSearchParams({
-        grant_type: 'authorization_code',
-        client_id: clientId,
-        code: code,
-        redirect_uri: redirectUri,
-      }),
-    });
-
-    if (!tokenResponse.ok) {
-      throw new Error('Failed to exchange code for tokens');
-    }
-
-    const tokens = await tokenResponse.json();
-    accessToken = tokens.access_token;
-
-    // Store tokens
-    localStorage.setItem('access_token', accessToken);
-    if (tokens.id_token) {
-      localStorage.setItem('id_token', tokens.id_token);
-    }
-    if (tokens.refresh_token) {
-      localStorage.setItem('refresh_token', tokens.refresh_token);
-    }
-
-    // Remove code from URL and redirect to clean dashboard
-    window.history.replaceState({}, document.title, window.location.pathname);
-    updateAuthUI(true);
-
-    // Reload the page to start fresh with authenticated state
-    window.location.reload();
-  } catch (error) {
-    console.error('OAuth callback failed:', error);
-    alert('Login failed. Please try again.');
-    localStorage.clear();
-    redirectToLogin();
-  }
+  // Redirect to custom login page
+  console.log('Redirecting to login page...');
+  window.location.href = '/login.html';
 }
 
 /**
@@ -141,17 +70,8 @@ function logout() {
   localStorage.removeItem('id_token');
   localStorage.removeItem('refresh_token');
 
-  // Redirect to Cognito logout endpoint
-  const { domain, region, clientId } = cognitoConfig;
-  const cognitoDomain = `https://${domain}.auth.${region}.amazoncognito.com`;
-  const redirectUri = window.location.origin;
-
-  const logoutUrl = `${cognitoDomain}/logout?` + new URLSearchParams({
-    client_id: clientId,
-    logout_uri: redirectUri,
-  });
-
-  window.location.href = logoutUrl;
+  // Redirect to login page
+  window.location.href = '/login.html';
 }
 
 /**

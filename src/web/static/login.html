@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login - Grid Trading Bot</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      background: linear-gradient(135deg, #0a0e27 0%, #1a1f3a 50%, #0f1729 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* Animated background particles */
+    .particles {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      z-index: 0;
+    }
+
+    .particle {
+      position: absolute;
+      width: 3px;
+      height: 3px;
+      background: rgba(79, 172, 254, 0.3);
+      border-radius: 50%;
+      animation: float linear infinite;
+    }
+
+    @keyframes float {
+      0% {
+        transform: translateY(100vh) translateX(0);
+        opacity: 0;
+      }
+      10% {
+        opacity: 1;
+      }
+      90% {
+        opacity: 1;
+      }
+      100% {
+        transform: translateY(-100vh) translateX(100px);
+        opacity: 0;
+      }
+    }
+
+    .login-container {
+      position: relative;
+      z-index: 1;
+      background: rgba(26, 31, 58, 0.95);
+      backdrop-filter: blur(20px);
+      border-radius: 20px;
+      padding: 3rem 2.5rem;
+      width: 90%;
+      max-width: 440px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5),
+                  0 0 1px rgba(79, 172, 254, 0.3);
+      border: 1px solid rgba(79, 172, 254, 0.1);
+      animation: slideIn 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    @keyframes slideIn {
+      from {
+        opacity: 0;
+        transform: translateY(30px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .logo-container {
+      text-align: center;
+      margin-bottom: 2.5rem;
+    }
+
+    .logo {
+      width: 70px;
+      height: 70px;
+      margin: 0 auto 1rem;
+      background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+      border-radius: 18px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 2rem;
+      box-shadow: 0 10px 30px rgba(79, 172, 254, 0.3);
+      animation: logoPulse 3s ease-in-out infinite;
+    }
+
+    @keyframes logoPulse {
+      0%, 100% {
+        box-shadow: 0 10px 30px rgba(79, 172, 254, 0.3);
+      }
+      50% {
+        box-shadow: 0 10px 40px rgba(79, 172, 254, 0.5);
+      }
+    }
+
+    .logo-container h1 {
+      font-size: 1.75rem;
+      background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      font-weight: 700;
+      margin-bottom: 0.5rem;
+    }
+
+    .logo-container p {
+      color: #8b92a7;
+      font-size: 0.95rem;
+      font-weight: 500;
+    }
+
+    .form-group {
+      margin-bottom: 1.5rem;
+    }
+
+    label {
+      display: block;
+      color: #e1e8f0;
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+      font-size: 0.9rem;
+      letter-spacing: 0.3px;
+    }
+
+    input {
+      width: 100%;
+      padding: 0.9rem 1rem;
+      background: rgba(15, 23, 41, 0.6);
+      border: 1.5px solid rgba(79, 172, 254, 0.2);
+      border-radius: 10px;
+      color: #e1e8f0;
+      font-size: 0.95rem;
+      transition: all 0.3s ease;
+      outline: none;
+    }
+
+    input:focus {
+      border-color: #4facfe;
+      background: rgba(15, 23, 41, 0.8);
+      box-shadow: 0 0 0 3px rgba(79, 172, 254, 0.1);
+    }
+
+    input::placeholder {
+      color: #6b7280;
+    }
+
+    .btn {
+      width: 100%;
+      padding: 1rem;
+      background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+      border: none;
+      border-radius: 10px;
+      color: #fff;
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      margin-top: 1rem;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .btn::before {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 0;
+      height: 0;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.2);
+      transform: translate(-50%, -50%);
+      transition: width 0.6s, height 0.6s;
+    }
+
+    .btn:hover::before {
+      width: 300px;
+      height: 300px;
+    }
+
+    .btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 10px 30px rgba(79, 172, 254, 0.4);
+    }
+
+    .btn:active {
+      transform: translateY(0);
+    }
+
+    .btn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .btn span {
+      position: relative;
+      z-index: 1;
+    }
+
+    .error-message {
+      background: rgba(239, 68, 68, 0.1);
+      border: 1px solid rgba(239, 68, 68, 0.3);
+      color: #f87171;
+      padding: 0.75rem 1rem;
+      border-radius: 8px;
+      margin-bottom: 1.5rem;
+      font-size: 0.9rem;
+      display: none;
+      animation: shake 0.5s;
+    }
+
+    .error-message.show {
+      display: block;
+    }
+
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      25% { transform: translateX(-10px); }
+      75% { transform: translateX(10px); }
+    }
+
+    .loading {
+      display: none;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      color: #4facfe;
+      font-weight: 600;
+      margin-top: 1rem;
+    }
+
+    .loading.show {
+      display: flex;
+    }
+
+    .spinner {
+      width: 20px;
+      height: 20px;
+      border: 3px solid rgba(79, 172, 254, 0.2);
+      border-top-color: #4facfe;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .footer-text {
+      text-align: center;
+      margin-top: 2rem;
+      color: #6b7280;
+      font-size: 0.85rem;
+    }
+
+    .footer-text a {
+      color: #4facfe;
+      text-decoration: none;
+      font-weight: 600;
+      transition: color 0.3s;
+    }
+
+    .footer-text a:hover {
+      color: #00f2fe;
+    }
+
+    /* Responsive */
+    @media (max-width: 480px) {
+      .login-container {
+        padding: 2rem 1.5rem;
+      }
+
+      .logo-container h1 {
+        font-size: 1.5rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- Animated particles background -->
+  <div class="particles" id="particles"></div>
+
+  <div class="login-container">
+    <div class="logo-container">
+      <div class="logo">📈</div>
+      <h1>Grid Trading Bot</h1>
+      <p>Sign in to your dashboard</p>
+    </div>
+
+    <div id="errorMessage" class="error-message"></div>
+
+    <form id="loginForm">
+      <div class="form-group">
+        <label for="email">Email Address</label>
+        <input
+          type="email"
+          id="email"
+          name="email"
+          placeholder="your@email.com"
+          required
+          autocomplete="email"
+        />
+      </div>
+
+      <div class="form-group">
+        <label for="password">Password</label>
+        <input
+          type="password"
+          id="password"
+          name="password"
+          placeholder="••••••••"
+          required
+          autocomplete="current-password"
+        />
+      </div>
+
+      <button type="submit" class="btn" id="loginBtn">
+        <span>Sign In</span>
+      </button>
+
+      <div class="loading" id="loading">
+        <div class="spinner"></div>
+        <span>Authenticating...</span>
+      </div>
+    </form>
+
+    <div class="footer-text">
+      Secured by AWS Cognito
+    </div>
+  </div>
+
+  <script>
+    // Create animated particles
+    const particlesContainer = document.getElementById('particles');
+    for (let i = 0; i < 30; i++) {
+      const particle = document.createElement('div');
+      particle.className = 'particle';
+      particle.style.left = Math.random() * 100 + '%';
+      particle.style.animationDuration = (Math.random() * 10 + 10) + 's';
+      particle.style.animationDelay = Math.random() * 5 + 's';
+      particlesContainer.appendChild(particle);
+    }
+
+    // Handle login
+    const form = document.getElementById('loginForm');
+    const errorMessage = document.getElementById('errorMessage');
+    const loading = document.getElementById('loading');
+    const loginBtn = document.getElementById('loginBtn');
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const email = document.getElementById('email').value;
+      const password = document.getElementById('password').value;
+
+      // Hide error, show loading
+      errorMessage.classList.remove('show');
+      loading.classList.add('show');
+      loginBtn.disabled = true;
+
+      try {
+        // Get auth config
+        const configResponse = await fetch('/api/auth/config');
+        const config = await configResponse.json();
+
+        if (!config.enabled) {
+          // Auth disabled, redirect to dashboard
+          window.location.href = '/';
+          return;
+        }
+
+        // Authenticate with Cognito
+        const authResponse = await fetch(`https://cognito-idp.${config.region}.amazonaws.com/`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/x-amz-json-1.1',
+            'X-Amz-Target': 'AWSCognitoIdentityProviderService.InitiateAuth'
+          },
+          body: JSON.stringify({
+            AuthFlow: 'USER_PASSWORD_AUTH',
+            ClientId: config.clientId,
+            AuthParameters: {
+              USERNAME: email,
+              PASSWORD: password
+            }
+          })
+        });
+
+        const authData = await authResponse.json();
+
+        if (!authResponse.ok) {
+          throw new Error(authData.message || 'Authentication failed');
+        }
+
+        if (authData.AuthenticationResult) {
+          // Store tokens
+          localStorage.setItem('access_token', authData.AuthenticationResult.AccessToken);
+          localStorage.setItem('id_token', authData.AuthenticationResult.IdToken);
+          if (authData.AuthenticationResult.RefreshToken) {
+            localStorage.setItem('refresh_token', authData.AuthenticationResult.RefreshToken);
+          }
+
+          // Redirect to dashboard
+          window.location.href = '/';
+        } else {
+          throw new Error('Authentication failed - no tokens received');
+        }
+      } catch (error) {
+        console.error('Login error:', error);
+        errorMessage.textContent = error.message || 'Invalid email or password';
+        errorMessage.classList.add('show');
+        loading.classList.remove('show');
+        loginBtn.disabled = false;
+      }
+    });
+
+    // Check if already authenticated
+    const token = localStorage.getItem('access_token');
+    if (token) {
+      window.location.href = '/';
+    }
+  </script>
+</body>
+</html>
