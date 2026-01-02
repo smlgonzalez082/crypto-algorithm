@@ -4,9 +4,6 @@ import { tradingDb } from "./models/database.js";
 
 const logger = createLogger("main");
 
-// Debug: Log all process events
-logger.info({ pid: process.pid }, "Process starting with PID");
-
 // Handle unhandled promise rejections
 process.on("unhandledRejection", (reason, promise) => {
   logger.error({ reason, promise }, "Unhandled Promise Rejection");
@@ -19,23 +16,6 @@ process.on("uncaughtException", (error) => {
   process.exit(1);
 });
 
-// Track process lifecycle events
-process.on("exit", (code) => {
-  // Note: Cannot use async operations here
-  console.error(`[EXIT EVENT] Process exiting with code: ${code}`);
-});
-
-process.on("beforeExit", (code) => {
-  logger.warn({ code }, "beforeExit event fired - event loop is empty!");
-});
-
-process.on("warning", (warning) => {
-  logger.warn(
-    { warning: warning.message, stack: warning.stack },
-    "Process warning",
-  );
-});
-
 async function main(): Promise<void> {
   logger.info("Starting Crypto Grid Trading Bot...");
 
@@ -43,19 +23,10 @@ async function main(): Promise<void> {
 
   // Handle graceful shutdown
   const shutdown = async (signal: string) => {
-    logger.info(
-      { signal, pid: process.pid },
-      "Received shutdown signal - starting cleanup",
-    );
+    logger.info({ signal }, "Received shutdown signal");
     try {
-      logger.info("Stopping web server...");
       await server.stop();
-      logger.info("Web server stopped");
-
-      logger.info("Closing database...");
       tradingDb.close();
-      logger.info("Database closed");
-
       logger.info("Server and database stopped gracefully");
       process.exit(0);
     } catch (error) {
@@ -65,56 +36,19 @@ async function main(): Promise<void> {
   };
 
   process.on("SIGINT", () => {
-    logger.warn("SIGINT received (Ctrl+C)");
     void shutdown("SIGINT");
   });
   process.on("SIGTERM", () => {
-    logger.warn("SIGTERM received");
     void shutdown("SIGTERM");
-  });
-  process.on("SIGHUP", () => {
-    logger.warn("SIGHUP received");
-    void shutdown("SIGHUP");
   });
 
   try {
-    logger.info("About to start server...");
     await server.start();
-    logger.info("Server started successfully, entering event loop");
-
-    // Heartbeat to prove process is alive
-    let heartbeatCount = 0;
-    logger.info("Setting up heartbeat interval...");
-    const intervalId = setInterval(() => {
-      heartbeatCount++;
-      // Use console.error to bypass logger and ensure it appears in Docker logs
-      console.error(
-        `[HEARTBEAT ${heartbeatCount}] Uptime: ${process.uptime()}s - Process is ALIVE!`,
-      );
-      logger.info(
-        { heartbeat: heartbeatCount, uptime: process.uptime() },
-        "Process alive - heartbeat",
-      );
-    }, 5000); // Every 5 seconds (reduced from 10 for faster detection)
-    logger.info({ intervalId }, "Heartbeat interval created");
-    console.error("[DEBUG] Heartbeat interval created successfully");
-
-    // Log active handles and requests
-    logger.info("Event loop status:");
-    logger.info(
-      { hasServer: !!server, intervalActive: !!intervalId },
-      "Active resources",
-    );
+    logger.info("Server started successfully");
   } catch (error) {
     logger.error({ error }, "Failed to start server");
     process.exit(1);
   }
-
-  logger.info(
-    "main() function completed - process should stay alive due to server and interval",
-  );
 }
 
-logger.info("Calling main()...");
 void main();
-logger.info("main() called (async, not awaited)");
