@@ -23,8 +23,15 @@ grep COGNITO .env
 echo "🛑 Stopping existing containers..."
 # Force remove any existing trading-bot containers first
 sudo docker rm -f $(sudo docker ps -aq --filter name=trading-bot) 2>/dev/null || true
+# Wait for Docker to finish cleanup
+sleep 5
+# Double-check no containers exist
+while sudo docker ps -a | grep -q trading-bot; do
+    echo "Waiting for container cleanup..."
+    sleep 2
+done
+sudo /usr/local/bin/docker-compose down 2>/dev/null || true
 sleep 2
-sudo /usr/local/bin/docker-compose down || true
 
 # Rebuild Docker image with updated Dockerfile
 echo "🔨 Rebuilding Docker image..."
