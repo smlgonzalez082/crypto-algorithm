@@ -256,7 +256,7 @@ export class WebServer {
             res.status(401).json({ error: "Authentication failed" });
           }
         } catch (err: unknown) {
-          this.logger.error({ err }, "Login failed");
+          logger.error({ err }, "Login failed");
           if (err && typeof err === 'object' && 'name' in err) {
             const awsError = err as { name: string; message?: string };
             if (awsError.name === "NotAuthorizedException" || awsError.name === "UserNotFoundException") {
